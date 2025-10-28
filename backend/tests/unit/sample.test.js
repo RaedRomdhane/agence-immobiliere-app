@@ -5,7 +5,7 @@ describe('Application de base', () => {
   describe('GET /', () => {
     it('devrait retourner un message de bienvenue', async () => {
       const response = await request(app).get('/');
-      
+
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
       expect(response.body.message).toContain('Bienvenue');
@@ -17,7 +17,7 @@ describe('Application de base', () => {
   describe('GET /health', () => {
     it('devrait retourner le status de santé de l\'API', async () => {
       const response = await request(app).get('/health');
-      
+
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('status', 'OK');
       expect(response.body).toHaveProperty('message', 'API is running');
@@ -27,7 +27,7 @@ describe('Application de base', () => {
 
     it('devrait retourner un timestamp valide', async () => {
       const response = await request(app).get('/health');
-      
+
       const timestamp = new Date(response.body.timestamp);
       expect(timestamp).toBeInstanceOf(Date);
       expect(timestamp.toString()).not.toBe('Invalid Date');
@@ -37,7 +37,7 @@ describe('Application de base', () => {
   describe('GET /route-inexistante', () => {
     it('devrait retourner 404 pour une route non trouvée', async () => {
       const response = await request(app).get('/route-inexistante');
-      
+
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('success', false);
       expect(response.body).toHaveProperty('message', 'Route non trouvée');
@@ -47,7 +47,7 @@ describe('Application de base', () => {
   describe('Headers de sécurité', () => {
     it('devrait avoir les headers Helmet configurés', async () => {
       const response = await request(app).get('/');
-      
+
       expect(response.headers).toHaveProperty('x-dns-prefetch-control');
       expect(response.headers).toHaveProperty('x-frame-options');
       expect(response.headers).toHaveProperty('x-content-type-options');
@@ -59,7 +59,7 @@ describe('Application de base', () => {
       const response = await request(app)
         .get('/')
         .set('Origin', 'http://localhost:3000');
-      
+
       expect(response.headers).toHaveProperty('access-control-allow-origin');
     });
   });
@@ -67,7 +67,7 @@ describe('Application de base', () => {
   describe('Content-Type', () => {
     it('devrait retourner du JSON', async () => {
       const response = await request(app).get('/');
-      
+
       expect(response.type).toBe('application/json');
     });
   });
@@ -78,7 +78,7 @@ describe('Application de base', () => {
         .post('/test')
         .send({ test: 'data' })
         .set('Content-Type', 'application/json');
-      
+
       // Devrait retourner 404 car la route n'existe pas, mais le JSON est parsé
       expect(response.status).toBe(404);
     });
@@ -88,7 +88,7 @@ describe('Application de base', () => {
         .post('/test')
         .send('key=value')
         .set('Content-Type', 'application/x-www-form-urlencoded');
-      
+
       expect(response.status).toBe(404);
     });
   });
