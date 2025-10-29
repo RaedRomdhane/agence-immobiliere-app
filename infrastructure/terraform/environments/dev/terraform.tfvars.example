@@ -1,0 +1,18 @@
+# Exemple de fichier terraform.tfvars pour l'environnement DEV
+# Copier ce fichier en terraform.tfvars et ajuster les valeurs
+
+# Région AWS
+region = "eu-west-3" # Paris
+
+# Configuration réseau
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.20.0/24"]
+availability_zones   = ["eu-west-3a", "eu-west-3b"]
+
+# Configuration base de données
+db_username = "admin"
+db_port     = 27017
+
+# SSH (restreindre ces IPs en fonction de votre localisation)
+ssh_allowed_ips = ["0.0.0.0/0"] # À remplacer par votre IP publique pour plus de sécurité
