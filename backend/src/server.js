@@ -5,50 +5,27 @@ const connectDB = require('./config/database');
 const PORT = process.env.PORT || 5000;
 
 // Variable pour stocker l'instance du serveur
-let serverInstance = null;
+let server = null;
 
-// Fonction de démarrage du serveur
+// Fonction de démarrage asynchrone
 const startServer = async () => {
   try {
     // Connexion à la base de données
     await connectDB();
 
     // Démarrage du serveur
-    serverInstance = app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log('========================================');
       console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-      console.log(`📍 Environnement: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🌐 API URL: ${process.env.API_URL || `http://localhost:${PORT}`}`);
+      console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 URL: http://localhost:${PORT}`);
+      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log('========================================');
     });
 
-    // Gestion de l'arrêt gracieux
-    process.on('SIGTERM', async () => {
-      console.log('\n👋 SIGTERM reçu, arrêt gracieux du serveur...');
-      if (serverInstance) {
-        serverInstance.close(() => {
-          console.log('✅ Serveur HTTP arrêté');
-          process.exit(0);
-        });
-      }
-    });
-
-    process.on('SIGINT', async () => {
-      console.log('\n👋 SIGINT reçu, arrêt gracieux du serveur...');
-      if (serverInstance) {
-        serverInstance.close(() => {
-          console.log('✅ Serveur HTTP arrêté');
-          process.exit(0);
-        });
-      }
-    });
-
-    return serverInstance;
+    return server;
   } catch (error) {
-    console.error('========================================');
-    console.error('❌ Erreur lors du démarrage du serveur');
-    console.error('Message:', error.message);
-    console.error('========================================');
+    console.error('❌ Échec du démarrage du serveur:', error.message);
     process.exit(1);
   }
 };
@@ -56,4 +33,24 @@ const startServer = async () => {
 // Démarrer le serveur
 startServer();
 
-module.exports = { startServer };
+// Gestion de l'arrêt gracieux
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM signal reçu: fermeture du serveur HTTP');
+  if (server) {
+    server.close(() => {
+      console.log('🔒 Processus HTTP fermé');
+    });
+  }
+});
+
+// Gestion des rejections de promesses non gérées
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  }
+});
+
+module.exports = server;
