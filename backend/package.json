@@ -10,7 +10,14 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "lint": "eslint src tests",
-    "lint:fix": "eslint src tests --fix"
+    "lint:fix": "eslint src tests --fix",
+    "db:migrate": "node scripts/migrate.js up",
+    "db:migrate:down": "node scripts/migrate.js down",
+    "db:migrate:status": "node scripts/migrate.js status",
+    "db:seed": "node scripts/seed.js seed",
+    "db:seed:clear": "node scripts/seed.js clear",
+    "db:seed:reseed": "node scripts/seed.js reseed",
+    "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "keywords": [
     "immobilier",
