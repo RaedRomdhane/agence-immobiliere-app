@@ -162,7 +162,7 @@ nano .env
 
 ```bash
 NODE_ENV=staging
-MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/agence-immobiliere-staging
+MONGODB_URI=mongodb+srv://<USERNAME>:<PASSWORD>@<CLUSTER>.mongodb.net/agence-immobiliere-staging
 JWT_SECRET=<générer_une_clé_forte>
 ```
 
@@ -370,7 +370,7 @@ npm run dev
 
 ```bash
 # Se connecter avec mongosh
-mongosh "mongodb+srv://cluster.mongodb.net/agence-immobiliere-staging"
+mongosh "mongodb+srv://<USERNAME>:<PASSWORD>@<CLUSTER>.mongodb.net/agence-immobiliere-staging"
 
 # Lister les collections
 show collections

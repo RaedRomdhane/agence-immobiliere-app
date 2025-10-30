@@ -1,0 +1,28 @@
+# GitGuardian configuration
+# https://docs.gitguardian.com/internal-repositories-monitoring/integrations/git_hooks/pre_commit
+
+# Version du format de configuration
+version: 2
+
+# Patterns à ignorer (faux positifs)
+# Ces fichiers contiennent des TEMPLATES avec des valeurs factices, pas de vraies credentials
+paths-ignore:
+  - "**/*.example"           # Tous les fichiers .env.example
+  - "**/docs/**/*.md"        # Documentation avec exemples
+  - "**/README.md"           # README avec exemples
+  - "**/.env.*.example"      # Templates d'environnement
+
+# Patterns de secrets à ignorer
+matches-ignore:
+  # MongoDB Atlas - Templates uniquement
+  - name: MongoDB Atlas Database URI
+    match: mongodb\+srv://<USERNAME>:<PASSWORD>@<CLUSTER>\.mongodb\.net/
+  
+  # SMTP - Templates uniquement
+  - name: Company Email Password
+    match: SMTP_(USER|PASS)=<YOUR_
+
+# Commentaire de clarification
+# IMPORTANT: Les fichiers .env.example et .env.staging.example contiennent
+# des valeurs FACTICES utilisées comme templates. Ce ne sont PAS de vraies credentials.
+# Les vraies credentials doivent être stockées dans des fichiers .env locaux (gitignorés).
