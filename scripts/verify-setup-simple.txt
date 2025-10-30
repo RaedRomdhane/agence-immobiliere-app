@@ -1,0 +1,2 @@
+# Test simple
+Write-Host "Test OK"
