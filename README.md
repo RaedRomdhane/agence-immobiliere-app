@@ -183,7 +183,110 @@ npm run dev
 
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:5000
+- **Backend Health Check:** http://localhost:5000/health
 - **MongoDB:** localhost:27017
+
+---
+
+## 📚 Documentation pour les développeurs
+
+Pour configurer votre environnement de développement complet, consultez nos guides détaillés :
+
+### 📖 Guides disponibles
+
+- 👉 **[Guide de Configuration Développeur](./docs/DEV-SETUP-GUIDE.md)** - Setup complet en < 2h
+- 🐳 **[Guide Docker](./docs/DOCKER-GUIDE.md)** - Configuration Docker pour dev et prod
+- ✅ **[Checklist de Validation](./docs/AW-12-CHECKLIST.md)** - Critères d'acceptation et tests
+- 📊 **[Rapport de Complétion](./docs/AW-12-COMPLETION-REPORT.md)** - Documentation du projet
+
+### ⚡ Démarrage ultra-rapide
+
+Si vous êtes pressé, voici la version condensée :
+
+```bash
+# 1. Cloner et installer
+git clone https://github.com/RaedRomdhane/agence-immobiliere-app.git
+cd agence-immobiliere-app
+cd backend && npm install && cd ..
+
+# 2. Configurer les variables d'environnement
+cp backend/.env.example backend/.env
+# Éditer backend/.env avec vos paramètres (MONGODB_URI, JWT_SECRET, etc.)
+
+# 3. Démarrer MongoDB
+# Option A: Local (macOS)
+brew services start mongodb-community
+
+# Option B: Local (Linux)
+sudo systemctl start mongod
+
+# Option C: Docker (Recommandé - toutes plateformes)
+docker-compose -f docker-compose.dev.yml up -d
+
+# 4. Lancer l'application backend
+cd backend && npm run dev
+
+# 5. Vérifier que tout fonctionne
+# Linux/macOS/WSL
+chmod +x scripts/verify-setup.sh
+./scripts/verify-setup.sh
+
+# Windows PowerShell
+.\scripts\verify-setup.ps1
+```
+
+### 🔍 Script de vérification
+
+Utilisez notre script automatique pour vérifier votre environnement :
+
+**Linux/macOS/WSL :**
+```bash
+./scripts/verify-setup.sh
+```
+
+**Windows PowerShell :**
+```powershell
+.\scripts\verify-setup.ps1
+```
+
+Le script vérifie :
+- ✅ Installation de Git, Node.js, npm, MongoDB, Docker
+- ✅ Structure du projet
+- ✅ Configuration des fichiers .env
+- ✅ Dépendances installées
+- ✅ Connectivité aux services
+
+### 🐳 Démarrage avec Docker (Recommandé)
+
+La méthode la plus simple pour démarrer tous les services :
+
+```bash
+# Démarrer tous les services (MongoDB + Backend + Frontend)
+docker-compose -f docker-compose.dev.yml up -d
+
+# Voir les logs
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Vérifier l'état des services
+docker-compose -f docker-compose.dev.yml ps
+
+# Arrêter tous les services
+docker-compose -f docker-compose.dev.yml down
+```
+
+### ⏱️ Temps de setup estimé
+
+| Expérience | Temps estimé |
+|------------|--------------|
+| Premier setup (débutant) | 65-95 minutes |
+| Setup avec expérience | 20-30 minutes |
+| Setup avec Docker uniquement | 10-15 minutes |
+
+### 🆘 Besoin d'aide ?
+
+Consultez notre section troubleshooting dans :
+- [Guide de Setup](./docs/DEV-SETUP-GUIDE.md#troubleshooting)
+- [Guide Docker](./docs/DOCKER-GUIDE.md#dépannage)
 
 ---
 
