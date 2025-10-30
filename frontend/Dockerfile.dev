@@ -1,0 +1,46 @@
+FROM node:20-alpine
+
+# Métadonnées
+LABEL maintainer="dev-team@agence-immobiliere.com"
+LABEL description="Frontend Next.js - Development Environment"
+
+# Installer les outils de développement
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++ \
+    curl
+
+# Créer un utilisateur non-root pour la sécurité
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Créer le répertoire de l'application
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer les dépendances
+RUN npm ci --only=production=false && \
+    npm cache clean --force
+
+# Changer le propriétaire des fichiers
+RUN chown -R nodejs:nodejs /app
+
+# Passer à l'utilisateur non-root
+USER nodejs
+
+# Copier le reste du code
+COPY --chown=nodejs:nodejs . .
+
+# Exposer le port Next.js
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Commande de démarrage en mode développement
+CMD ["npm", "run", "dev"]
