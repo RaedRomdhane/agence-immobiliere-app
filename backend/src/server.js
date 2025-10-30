@@ -10,8 +10,14 @@ let server = null;
 // Fonction de démarrage asynchrone
 const startServer = async () => {
   try {
-    // Connexion à la base de données
-    await connectDB();
+    // Connexion à la base de données (optionnelle en mode CI/test)
+    const dbConnection = await connectDB();
+    
+    if (dbConnection) {
+      console.log('✅ Base de données connectée');
+    } else {
+      console.log('⚠️  Démarrage sans connexion MongoDB (mode CI/test)');
+    }
 
     // Démarrage du serveur
     server = app.listen(PORT, () => {

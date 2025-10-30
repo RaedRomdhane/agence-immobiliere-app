@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    // Vérifier que MONGODB_URI est défini
+    if (!process.env.MONGODB_URI) {
+      console.warn('⚠️  MONGODB_URI non défini - Connexion MongoDB ignorée (mode CI/test)');
+      return null;
+    }
+
     // Options de connexion
     const options = {
       // Nouvelles options (Mongoose 6+)
