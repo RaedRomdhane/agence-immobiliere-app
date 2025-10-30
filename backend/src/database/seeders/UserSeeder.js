@@ -29,7 +29,7 @@ class UserSeeder {
 
       // Données des utilisateurs de test
       const users = [
-        // 1. Administrateur
+        // 1. Administrateur / Agent principal
         {
           firstName: 'Admin',
           lastName: 'Principal',
@@ -47,13 +47,13 @@ class UserSeeder {
           isEmailVerified: true,
         },
 
-        // 2. Agent immobilier principal
+        // 2. Agent immobilier (admin avec droits agent)
         {
           firstName: 'Jean',
           lastName: 'Dupont',
           email: 'jean.dupont@agence-immobiliere.fr',
-          password: 'Agent123!',
-          role: 'agent',
+          password: 'Admin123!',
+          role: 'admin',
           phone: '+33623456789',
           address: {
             street: '45 Rue de la République',
@@ -65,13 +65,13 @@ class UserSeeder {
           isEmailVerified: true,
         },
 
-        // 3. Deuxième agent
+        // 3. Deuxième agent (admin)
         {
           firstName: 'Marie',
           lastName: 'Martin',
           email: 'marie.martin@agence-immobiliere.fr',
-          password: 'Agent123!',
-          role: 'agent',
+          password: 'Admin123!',
+          role: 'admin',
           phone: '+33634567890',
           address: {
             street: '78 Boulevard Haussmann',
@@ -83,13 +83,13 @@ class UserSeeder {
           isEmailVerified: true,
         },
 
-        // 4. Troisième agent
+        // 4. Troisième agent (admin)
         {
           firstName: 'Pierre',
           lastName: 'Dubois',
           email: 'pierre.dubois@agence-immobiliere.fr',
-          password: 'Agent123!',
-          role: 'agent',
+          password: 'Admin123!',
+          role: 'admin',
           phone: '+33645678901',
           address: {
             street: '12 Place Bellecour',
@@ -214,20 +214,20 @@ class UserSeeder {
       console.log(`Total: ${stats.total} utilisateurs`);
       console.log(`Actifs: ${stats.active} utilisateurs`);
       console.log('\nPar rôle:');
-      console.log(`  - Admins: ${stats.byRole.admin || 0}`);
-      console.log(`  - Agents: ${stats.byRole.agent || 0}`);
+      console.log(`  - Admins/Agents: ${stats.byRole.admin || 0}`);
       console.log(`  - Clients: ${stats.byRole.client || 0}`);
       console.log('========================================');
 
       console.log('\n🔑 Identifiants de test:');
       console.log('========================================');
-      console.log('👤 Admin:');
+      console.log('👤 Admin Principal:');
       console.log('   Email: admin@agence-immobiliere.fr');
       console.log('   Password: Admin123!');
+      console.log('   Note: Les admins ont aussi les droits d\'agent');
       console.log('');
-      console.log('👤 Agent (Jean Dupont):');
+      console.log('👤 Agent/Admin (Jean Dupont):');
       console.log('   Email: jean.dupont@agence-immobiliere.fr');
-      console.log('   Password: Agent123!');
+      console.log('   Password: Admin123!');
       console.log('');
       console.log('👤 Client (Sophie Bernard):');
       console.log('   Email: sophie.bernard@example.com');

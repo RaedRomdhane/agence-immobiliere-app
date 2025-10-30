@@ -55,8 +55,8 @@ class CreateUsersCollection extends Migration {
                 description: 'Mot de passe requis (min 6 caractères)',
               },
               role: {
-                enum: ['client', 'agent', 'admin'],
-                description: 'Rôle requis: client, agent ou admin',
+                enum: ['client', 'admin'],
+                description: 'Rôle requis: client ou admin (admin a aussi les droits agent)',
               },
               isActive: {
                 bsonType: 'bool',

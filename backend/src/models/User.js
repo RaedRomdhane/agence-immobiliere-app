@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['client', 'agent', 'admin'],
+        values: ['client', 'admin'],
         message: '{VALUE} n\'est pas un rôle valide',
       },
       default: 'client',
@@ -236,6 +236,22 @@ userSchema.methods.hasAnyRole = function (roles) {
   return roles.includes(this.role);
 };
 
+/**
+ * Vérifier si l'utilisateur est un agent (admin)
+ * @returns {Boolean}
+ */
+userSchema.methods.isAgent = function () {
+  return this.role === 'admin';
+};
+
+/**
+ * Vérifier si l'utilisateur est un admin
+ * @returns {Boolean}
+ */
+userSchema.methods.isAdmin = function () {
+  return this.role === 'admin';
+};
+
 // ==================== MÉTHODES STATIQUES ====================
 /**
  * Trouver un utilisateur par email
@@ -247,11 +263,11 @@ userSchema.statics.findByEmail = function (email) {
 };
 
 /**
- * Trouver tous les agents actifs
+ * Trouver tous les agents actifs (admins)
  * @returns {Promise<Array<User>>}
  */
 userSchema.statics.findActiveAgents = function () {
-  return this.find({ role: 'agent', isActive: true }).sort({ createdAt: -1 });
+  return this.find({ role: 'admin', isActive: true }).sort({ createdAt: -1 });
 };
 
 /**
