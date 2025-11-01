@@ -1,20 +1,14 @@
 /**
  * Classe d'erreur API personnalisée
- * Permet de créer des erreurs avec codes HTTP et messages standardisés
+ * Permet de créer des erreurs avec des codes HTTP appropriés
  */
 class ApiError extends Error {
-  /**
-   * Créer une erreur API
-   * @param {number} statusCode - Code HTTP de l'erreur
-   * @param {string} message - Message d'erreur
-   * @param {boolean} isOperational - Si true, erreur opérationnelle (pas un bug)
-   * @param {string} stack - Stack trace (optionnel)
-   */
-  constructor(statusCode, message, isOperational = true, stack = '') {
+  constructor(statusCode, message, isOperational = true, stack = '', errors = []) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.success = false;
+    this.errors = errors;
 
     if (stack) {
       this.stack = stack;
@@ -24,63 +18,51 @@ class ApiError extends Error {
   }
 
   /**
-   * Créer une erreur 400 Bad Request
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 400 - Bad Request
    */
-  static badRequest(message = 'Requête invalide') {
-    return new ApiError(400, message);
+  static badRequest(message = 'Requête invalide', errors = []) {
+    const error = new ApiError(400, message);
+    error.errors = errors;
+    return error;
   }
 
   /**
-   * Créer une erreur 401 Unauthorized
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 401 - Unauthorized
    */
-  static unauthorized(message = 'Non authentifié') {
+  static unauthorized(message = 'Non autorisé') {
     return new ApiError(401, message);
   }
 
   /**
-   * Créer une erreur 403 Forbidden
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 403 - Forbidden
    */
   static forbidden(message = 'Accès interdit') {
     return new ApiError(403, message);
   }
 
   /**
-   * Créer une erreur 404 Not Found
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 404 - Not Found
    */
   static notFound(message = 'Ressource introuvable') {
     return new ApiError(404, message);
   }
 
   /**
-   * Créer une erreur 409 Conflict
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 409 - Conflict
    */
-  static conflict(message = 'Conflit de données') {
+  static conflict(message = 'Conflit') {
     return new ApiError(409, message);
   }
 
   /**
-   * Créer une erreur 422 Unprocessable Entity
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 422 - Unprocessable Entity
    */
-  static unprocessableEntity(message = 'Données non traitables') {
+  static unprocessableEntity(message = 'Entité non traitable') {
     return new ApiError(422, message);
   }
 
   /**
-   * Créer une erreur 500 Internal Server Error
-   * @param {string} message - Message d'erreur
-   * @returns {ApiError}
+   * Erreur 500 - Internal Server Error
    */
   static internal(message = 'Erreur interne du serveur') {
     return new ApiError(500, message, false);

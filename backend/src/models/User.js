@@ -47,8 +47,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       match: [
-        /^(\+33|0)[1-9](\d{2}){4}$/,
-        'Veuillez fournir un numéro de téléphone français valide',
+        /^(\+216|00216)?[2-9]\d{7}$/,
+        'Veuillez fournir un numéro de téléphone tunisien valide (+216XXXXXXXX ou XXXXXXXX)',
       ],
     },
     address: {

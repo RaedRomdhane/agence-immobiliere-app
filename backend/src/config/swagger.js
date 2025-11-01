@@ -1,20 +1,15 @@
-/**
- * Configuration Swagger pour la documentation de l'API
- */
 const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
 
-// Configuration Swagger/OpenAPI
-const swaggerOptions = {
+const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'API Agence Immobilière',
+      title: 'Agence Immobilière API',
       version: '1.0.0',
-      description: 'Documentation complète de l\'API REST pour l\'application Agence Immobilière',
+      description: 'API REST pour la plateforme de gestion immobilière',
       contact: {
         name: 'Support API',
-        email: 'support@agence-immobiliere.com',
+        email: 'support@agence-immo.com',
       },
       license: {
         name: 'MIT',
@@ -24,87 +19,72 @@ const swaggerOptions = {
     servers: [
       {
         url: process.env.API_URL || 'http://localhost:5000',
-        description: process.env.NODE_ENV === 'production' ? 'Serveur de Production' : 'Serveur de Développement',
+        description: 'Serveur de développement',
+      },
+    ],
+    tags: [
+      {
+        name: 'Auth',
+        description: 'Endpoints d\'authentification et gestion des comptes',
+      },
+      {
+        name: 'Users',
+        description: 'Gestion des utilisateurs',
       },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
       schemas: {
         User: {
           type: 'object',
-          required: ['firstName', 'lastName', 'email', 'password'],
           properties: {
-            _id: {
+            id: {
               type: 'string',
-              description: 'ID unique de l\'utilisateur',
               example: '507f1f77bcf86cd799439011',
             },
             firstName: {
               type: 'string',
-              description: 'Prénom de l\'utilisateur',
               example: 'Jean',
             },
             lastName: {
               type: 'string',
-              description: 'Nom de l\'utilisateur',
               example: 'Dupont',
             },
             email: {
               type: 'string',
               format: 'email',
-              description: 'Email de l\'utilisateur',
               example: 'jean.dupont@example.com',
             },
             phone: {
               type: 'string',
-              description: 'Téléphone de l\'utilisateur (format français)',
               example: '+33612345678',
             },
             role: {
               type: 'string',
-              enum: ['admin', 'client'],
-              description: 'Rôle de l\'utilisateur',
+              enum: ['client', 'admin'],
               example: 'client',
             },
             isActive: {
               type: 'boolean',
-              description: 'Statut actif de l\'utilisateur',
               example: true,
-            },
-            address: {
-              type: 'object',
-              properties: {
-                street: {
-                  type: 'string',
-                  example: '123 Rue de la Paix',
-                },
-                city: {
-                  type: 'string',
-                  example: 'Paris',
-                },
-                postalCode: {
-                  type: 'string',
-                  example: '75001',
-                },
-                country: {
-                  type: 'string',
-                  example: 'France',
-                },
-              },
             },
             fullName: {
               type: 'string',
-              description: 'Nom complet (propriété virtuelle)',
               example: 'Jean Dupont',
             },
             createdAt: {
               type: 'string',
               format: 'date-time',
-              description: 'Date de création',
             },
             updatedAt: {
               type: 'string',
               format: 'date-time',
-              description: 'Date de dernière mise à jour',
             },
           },
         },
@@ -135,6 +115,9 @@ const swaggerOptions = {
                         type: 'string',
                       },
                       message: {
+                        type: 'string',
+                      },
+                      value: {
                         type: 'string',
                       },
                     },
@@ -169,12 +152,11 @@ const swaggerOptions = {
             },
             message: {
               type: 'string',
-              example: 'Données récupérées avec succès',
             },
             data: {
               type: 'array',
               items: {
-                $ref: '#/components/schemas/User',
+                type: 'object',
               },
             },
             pagination: {
@@ -221,7 +203,7 @@ const swaggerOptions = {
           },
         },
         Unauthorized: {
-          description: 'Non authentifié',
+          description: 'Non autorisé - Token invalide ou manquant',
           content: {
             'application/json': {
               schema: {
@@ -241,7 +223,7 @@ const swaggerOptions = {
           },
         },
         NotFound: {
-          description: 'Ressource introuvable',
+          description: 'Ressource non trouvée',
           content: {
             'application/json': {
               schema: {
@@ -251,7 +233,7 @@ const swaggerOptions = {
           },
         },
         Conflict: {
-          description: 'Conflit de données',
+          description: 'Conflit - La ressource existe déjà',
           content: {
             'application/json': {
               schema: {
@@ -272,27 +254,10 @@ const swaggerOptions = {
         },
       },
     },
-    tags: [
-      {
-        name: 'Users',
-        description: 'Endpoints pour la gestion des utilisateurs',
-      },
-    ],
   },
-  apis: ['./src/routes/*.js'], // Chemins vers les fichiers contenant les annotations Swagger
+  apis: ['./src/routes/*.js'], // Chemins vers les fichiers de routes avec commentaires JSDoc
 };
 
-// Générer la spécification Swagger
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+const swaggerSpec = swaggerJsdoc(options);
 
-// Options de l'interface Swagger UI
-const swaggerUiOptions = {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'API Agence Immobilière - Documentation',
-};
-
-module.exports = {
-  swaggerSpec,
-  swaggerUi,
-  swaggerUiOptions,
-};
+module.exports = swaggerSpec;

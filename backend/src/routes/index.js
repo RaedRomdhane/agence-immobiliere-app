@@ -1,17 +1,13 @@
-/**
- * Point d'entrée centralisé pour toutes les routes de l'API
- */
 const express = require('express');
-const router = express.Router();
 
-// Import des routes
-const userRoutes = require('./userRoutes');
+const router = express.Router();
 
 /**
  * @swagger
  * /:
  *   get:
- *     summary: Route de bienvenue de l'API
+ *     summary: Page d'accueil de l'API
+ *     tags: [General]
  *     responses:
  *       200:
  *         description: Message de bienvenue
@@ -22,6 +18,7 @@ router.get('/', (req, res) => {
     message: 'Bienvenue sur l\'API Agence Immobilière',
     version: '1.0.0',
     endpoints: {
+      auth: '/api/auth',
       users: '/api/users',
       docs: '/api-docs',
       health: '/health',
@@ -33,21 +30,21 @@ router.get('/', (req, res) => {
  * @swagger
  * /health:
  *   get:
- *     summary: Vérifier l'état de santé de l'API
+ *     summary: Vérification de l'état du serveur
+ *     tags: [General]
  *     responses:
  *       200:
- *         description: API opérationnelle
+ *         description: Serveur en fonctionnement
  */
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'API opérationnelle',
+    status: 'OK',
+    message: 'API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
   });
 });
-
-// Monter les routes
-router.use('/users', userRoutes);
 
 module.exports = router;

@@ -1,98 +1,90 @@
-/**
- * Middleware de gestion centralisée des erreurs
- */
 const ApiError = require('../utils/ApiError');
+const ApiResponse = require('../utils/ApiResponse');
 
 /**
- * Convertir les erreurs en ApiError
- * @param {Error} err - Erreur à convertir
- * @param {Object} req - Requête Express
- * @returns {ApiError}
+ * Convertit les erreurs Mongoose/JWT en ApiError
  */
-const convertToApiError = (err, req) => {
-  let error = err;
-
-  // Si ce n'est pas déjà une ApiError, la convertir
-  if (!(error instanceof ApiError)) {
-    // Erreur de validation Mongoose
-    if (error.name === 'ValidationError') {
-      const message = Object.values(error.errors)
-        .map((e) => e.message)
-        .join(', ');
-      error = ApiError.badRequest(message);
-    }
-    // Erreur de cast Mongoose (ID invalide)
-    else if (error.name === 'CastError') {
-      error = ApiError.badRequest(`${error.path} invalide: ${error.value}`);
-    }
-    // Erreur de duplication Mongoose (clé unique)
-    else if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      error = ApiError.conflict(`${field} déjà utilisé`);
-    }
-    // Erreur JWT invalide
-    else if (error.name === 'JsonWebTokenError') {
-      error = ApiError.unauthorized('Token invalide');
-    }
-    // Erreur JWT expiré
-    else if (error.name === 'TokenExpiredError') {
-      error = ApiError.unauthorized('Token expiré');
-    }
-    // Erreur générique
-    else {
-      const statusCode = error.statusCode || 500;
-      const message = error.message || 'Erreur interne du serveur';
-      error = new ApiError(statusCode, message, false, err.stack);
-    }
+const convertToApiError = (err) => {
+  // Erreur de validation Mongoose
+  if (err.name === 'ValidationError') {
+    const errors = Object.values(err.errors).map((e) => ({
+      field: e.path,
+      message: e.message,
+    }));
+    return ApiError.badRequest('Erreur de validation', errors);
   }
 
-  return error;
+  // Erreur CastError (ID MongoDB invalide)
+  if (err.name === 'CastError') {
+    return ApiError.badRequest(`Format invalide pour ${err.path}`);
+  }
+
+  // Erreur de clé dupliquée (unique constraint)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return ApiError.conflict(`Le champ ${field} existe déjà`);
+  }
+
+  // Erreur JWT
+  if (err.name === 'JsonWebTokenError') {
+    return ApiError.unauthorized('Token invalide');
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return ApiError.unauthorized('Token expiré');
+  }
+
+  return err;
 };
 
 /**
- * Middleware de gestion d'erreurs (doit être le dernier middleware)
+ * Middleware de gestion des erreurs
  */
 const errorHandler = (err, req, res, next) => {
-  const error = convertToApiError(err, req);
+  let error = err;
 
-  // Log de l'erreur (en production, utiliser un logger comme Winston)
+  // Log pour déboguer le type d'erreur
+  console.log('🔍 Type d\'erreur reçue:', {
+    isApiError: error instanceof ApiError,
+    constructor: error.constructor.name,
+    hasErrors: !!error.errors,
+    errorsLength: error.errors?.length
+  });
+
+  // Si ce n'est pas une ApiError, convertir
+  if (!(error instanceof ApiError)) {
+    error = convertToApiError(error);
+  }
+
+  // Log l'erreur en développement
   if (process.env.NODE_ENV === 'development') {
-    console.error('❌ Erreur:', {
+    console.error('❌ Error:', {
       message: error.message,
       statusCode: error.statusCode,
       stack: error.stack,
-      path: req.path,
-      method: req.method,
     });
   }
 
-  // Préparer la réponse d'erreur
-  const response = {
-    success: false,
-    error: {
-      message: error.message,
-      statusCode: error.statusCode,
-    },
-  };
-
-  // Ajouter la stack trace en développement
-  if (process.env.NODE_ENV === 'development') {
-    response.error.stack = error.stack;
-  }
-
   // Envoyer la réponse
-  res.status(error.statusCode).json(response);
+  res.status(error.statusCode || 500).json(
+    ApiResponse.error(
+      error.message || 'Erreur interne du serveur',
+      error.statusCode || 500,
+      error.errors || []
+    )
+  );
 };
 
 /**
  * Middleware pour gérer les routes non trouvées (404)
  */
 const notFound = (req, res, next) => {
-  const error = ApiError.notFound(`Route non trouvée: ${req.originalUrl}`);
+  const error = ApiError.notFound(`Route ${req.originalUrl} non trouvée`);
   next(error);
 };
 
 module.exports = {
   errorHandler,
   notFound,
+  convertToApiError,
 };
