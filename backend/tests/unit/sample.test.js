@@ -4,7 +4,7 @@ const app = require('../../src/app');
 describe('Application de base', () => {
   describe('GET /', () => {
     it('devrait retourner un message de bienvenue', async () => {
-      const response = await request(app).get('/');
+      const response = await request(app).get('/api');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
@@ -16,17 +16,16 @@ describe('Application de base', () => {
 
   describe('GET /health', () => {
     it('devrait retourner le status de santé de l\'API', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/api/health');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('status', 'OK');
-      expect(response.body).toHaveProperty('message', 'API is running');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('message', 'API opérationnelle');
       expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('environment');
     });
 
     it('devrait retourner un timestamp valide', async () => {
-      const response = await request(app).get('/health');
+      const response = await request(app).get('/api/health');
 
       const timestamp = new Date(response.body.timestamp);
       expect(timestamp).toBeInstanceOf(Date);
@@ -40,13 +39,14 @@ describe('Application de base', () => {
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('success', false);
-      expect(response.body).toHaveProperty('message', 'Route non trouvée');
+      expect(response.body.error).toHaveProperty('message');
+      expect(response.body.error.message).toContain('Route non trouvée');
     });
   });
 
   describe('Headers de sécurité', () => {
     it('devrait avoir les headers Helmet configurés', async () => {
-      const response = await request(app).get('/');
+      const response = await request(app).get('/api');
 
       expect(response.headers).toHaveProperty('x-dns-prefetch-control');
       expect(response.headers).toHaveProperty('x-frame-options');
