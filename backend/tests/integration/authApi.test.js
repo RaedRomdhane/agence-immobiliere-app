@@ -171,14 +171,14 @@ describe('Tests d\'Intégration - Authentification', () => {
       expect(res.body.error.message).toContain('déjà utilisé');
     });
 
-    it('devrait accepter un numéro de téléphone français valide', async () => {
+    it('devrait accepter un numéro de téléphone tunisien valide', async () => {
       const userData = {
         firstName: 'Test',
         lastName: 'User',
         email: 'phone-test@example.com',
         password: 'Password123!',
         confirmPassword: 'Password123!',
-        phone: '+33612345678',
+        phone: '+21695292324',
       };
 
       const res = await request(app)

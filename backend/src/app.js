@@ -9,6 +9,7 @@ const swaggerSpec = require('./config/swagger');
 const configurePassport = require('./config/passport');
 const routes = require('./routes');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 
 const app = express();
@@ -86,6 +87,7 @@ app.get('/', (req, res) => {
 
 // Routes API
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api', routes);
 
 // Gestion des routes non trouvées

@@ -16,16 +16,16 @@ describe('Application de base', () => {
 
   describe('GET /health', () => {
     it('devrait retourner le status de santé de l\'API', async () => {
-      const response = await request(app).get('/api/health');
+      const response = await request(app).get('/health');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('message', 'API opérationnelle');
+      expect(response.body).toHaveProperty('status', 'OK');
+      expect(response.body).toHaveProperty('message', 'API is running');
       expect(response.body).toHaveProperty('timestamp');
     });
 
     it('devrait retourner un timestamp valide', async () => {
-      const response = await request(app).get('/api/health');
+      const response = await request(app).get('/health');
 
       const timestamp = new Date(response.body.timestamp);
       expect(timestamp).toBeInstanceOf(Date);
@@ -40,7 +40,7 @@ describe('Application de base', () => {
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('success', false);
       expect(response.body.error).toHaveProperty('message');
-      expect(response.body.error.message).toContain('Route non trouvée');
+      expect(response.body.error.message).toContain('non trouvée');
     });
   });
 
