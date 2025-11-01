@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-const ApiResponse = require('../utils/ApiResponse');
+const ApiError = require('../utils/ApiError');
 
 /**
  * Middleware pour valider les résultats de express-validator
@@ -14,9 +14,9 @@ const validate = (req, res, next) => {
       value: error.value,
     }));
 
-    return res.status(400).json(
-      ApiResponse.error('Validation échouée', 400, formattedErrors)
-    );
+    // Utiliser ApiError pour créer une erreur avec les détails
+    const error = ApiError.badRequest('Validation échouée', formattedErrors);
+    return next(error);
   }
 
   next();

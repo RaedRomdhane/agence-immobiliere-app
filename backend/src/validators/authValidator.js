@@ -54,10 +54,10 @@ const registerValidation = [
     }),
 
   body('phone')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
-    .matches(/^(\+33|0)[1-9](\d{2}){4}$/)
-    .withMessage('Le numéro de téléphone doit être au format français (+33XXXXXXXXX ou 0XXXXXXXXX)'),
+    .matches(/^(\+216|00216)?[2-9]\d{7}$/)
+    .withMessage('Le numéro de téléphone doit être au format tunisien (+216XXXXXXXX ou XXXXXXXX)'),
 
   body('role')
     .optional()

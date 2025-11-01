@@ -43,6 +43,14 @@ const convertToApiError = (err) => {
 const errorHandler = (err, req, res, next) => {
   let error = err;
 
+  // Log pour déboguer le type d'erreur
+  console.log('🔍 Type d\'erreur reçue:', {
+    isApiError: error instanceof ApiError,
+    constructor: error.constructor.name,
+    hasErrors: !!error.errors,
+    errorsLength: error.errors?.length
+  });
+
   // Si ce n'est pas une ApiError, convertir
   if (!(error instanceof ApiError)) {
     error = convertToApiError(error);

@@ -3,11 +3,12 @@
  * Permet de créer des erreurs avec des codes HTTP appropriés
  */
 class ApiError extends Error {
-  constructor(statusCode, message, isOperational = true, stack = '') {
+  constructor(statusCode, message, isOperational = true, stack = '', errors = []) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.success = false;
+    this.errors = errors;
 
     if (stack) {
       this.stack = stack;
@@ -19,8 +20,10 @@ class ApiError extends Error {
   /**
    * Erreur 400 - Bad Request
    */
-  static badRequest(message = 'Requête invalide') {
-    return new ApiError(400, message);
+  static badRequest(message = 'Requête invalide', errors = []) {
+    const error = new ApiError(400, message);
+    error.errors = errors;
+    return error;
   }
 
   /**
