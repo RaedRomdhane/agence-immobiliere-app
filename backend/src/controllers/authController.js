@@ -151,4 +151,34 @@ exports.logout = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * @desc    Demande de réinitialisation de mot de passe
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const result = await AuthService.forgotPassword(email);
+
+  res.json(
+    ApiResponse.success(result.message)
+  );
+});
+
+/**
+ * @desc    Réinitialisation du mot de passe
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  const result = await AuthService.resetPassword(token, newPassword);
+
+  res.json(
+    ApiResponse.success(result.message)
+  );
+});
+
 module.exports = exports;
