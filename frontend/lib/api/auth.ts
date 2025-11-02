@@ -55,16 +55,16 @@ export const authApi = {
    * Connexion avec Google OAuth (pour utilisateurs existants)
    */
   googleLogin: () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${apiUrl}/auth/google`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    window.location.href = `${apiUrl}/api/auth/google`;
   },
 
   /**
    * Inscription avec Google OAuth (pour créer un nouveau compte)
    */
   googleSignup: () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${apiUrl}/auth/google/signup`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    window.location.href = `${apiUrl}/api/auth/google/signup`;
   },
 
   /**
