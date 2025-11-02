@@ -3,31 +3,61 @@
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const error = searchParams.get('error');
+    const handleCallback = async () => {
+      const token = searchParams.get('token');
+      const error = searchParams.get('error');
 
-    if (error) {
-      // Erreur d'authentification Google
-      router.push('/login?error=google_auth_failed');
-      return;
-    }
+      if (error) {
+        // Erreur d'authentification Google
+        router.push('/login?error=google_auth_failed');
+        return;
+      }
 
-    if (token) {
-      // Sauvegarder le token
-      localStorage.setItem('token', token);
-      
-      // Rediriger vers la page d'accueil ou dashboard
-      router.push('/?registered=true');
-    } else {
-      // Pas de token, rediriger vers login
-      router.push('/login');
-    }
+      if (token) {
+        try {
+          // Sauvegarder le token
+          localStorage.setItem('token', token);
+          
+          // Récupérer les informations utilisateur
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+          const response = await axios.get(`${apiUrl}/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.data.success) {
+            // Sauvegarder les infos utilisateur
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            
+            // Rediriger vers le dashboard
+            router.push('/');
+            // Forcer le rechargement pour que l'AuthProvider détecte le changement
+            window.location.href = '/';
+          } else {
+            // Token invalide
+            localStorage.removeItem('token');
+            router.push('/login?error=invalid_token');
+          }
+        } catch (error) {
+          console.error('Erreur lors de la récupération des infos utilisateur:', error);
+          localStorage.removeItem('token');
+          router.push('/login?error=auth_failed');
+        }
+      } else {
+        // Pas de token, rediriger vers login
+        router.push('/login');
+      }
+    };
+
+    handleCallback();
   }, [router, searchParams]);
 
   return (

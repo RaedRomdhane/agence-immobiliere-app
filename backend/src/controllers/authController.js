@@ -130,6 +130,7 @@ exports.getMe = asyncHandler(async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        photoURL: user.avatar, // Ajouter l'avatar de l'utilisateur
         isActive: user.isActive,
         createdAt: user.createdAt,
       },
