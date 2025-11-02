@@ -438,7 +438,7 @@ class AuthService {
       });
 
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Email de réinitialisation envoyé:', {
+        console.log('✅ Email de réinitialisation envoyé:', {
           to: user.email,
           messageId: info.messageId,
           previewURL: nodemailer.getTestMessageUrl(info),
@@ -449,7 +449,24 @@ class AuthService {
         message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
       };
     } catch (error) {
-      // Nettoyer le token en cas d'erreur
+      // En développement, on log l'erreur mais on continue
+      // (problème SSL avec Ethereal)
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('⚠️  Erreur SMTP (ignorée en dev):', error.message);
+        console.log('📧 Token de réinitialisation créé pour:', user.email);
+        console.log('🔗 Lien de réinitialisation:', resetUrl);
+        
+        // Retourner quand même un succès en développement
+        return {
+          message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
+          devInfo: {
+            warning: 'Email non envoyé (erreur SMTP en développement)',
+            resetUrl: resetUrl,
+          }
+        };
+      }
+      
+      // En production, nettoyer le token et propager l'erreur
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
       await user.save({ validateBeforeSave: false });
