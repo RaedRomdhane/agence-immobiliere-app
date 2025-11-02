@@ -1,10 +1,8 @@
+'use client';
+
+import { Suspense } from 'react';
 import ResetPasswordForm from '@/components/forms/ResetPasswordForm';
 import { Building2, Shield, Lock, AlertTriangle } from 'lucide-react';
-
-export const metadata = {
-  title: 'Réinitialisation du mot de passe - Agence Immobilière',
-  description: 'Définissez un nouveau mot de passe pour votre compte',
-};
 
 export default function ResetPasswordPage() {
   return (
@@ -126,7 +124,14 @@ export default function ResetPasswordPage() {
 
           {/* Form */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <ResetPasswordForm />
+            <Suspense fallback={
+              <div className="text-center py-8">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+                <p className="mt-2 text-gray-600">Chargement...</p>
+              </div>
+            }>
+              <ResetPasswordForm />
+            </Suspense>
           </div>
 
           {/* Footer */}
