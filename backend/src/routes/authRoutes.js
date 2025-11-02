@@ -176,10 +176,25 @@ router.get(
  */
 router.get(
   '/google/callback',
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`,
-    session: false,
-  }),
+  (req, res, next) => {
+    passport.authenticate('google', { 
+      session: false,
+      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`,
+    }, (err, user, info) => {
+      if (err) {
+        // Rediriger vers le frontend avec le message d'erreur
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const errorMessage = encodeURIComponent(err.message || 'Erreur lors de l\'authentification Google');
+        return res.redirect(`${frontendURL}/login?error=${errorMessage}`);
+      }
+      if (!user) {
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        return res.redirect(`${frontendURL}/login?error=google_auth_failed`);
+      }
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
   ActivityLogger.logAccountCreation(),
   authController.googleCallback
 );
