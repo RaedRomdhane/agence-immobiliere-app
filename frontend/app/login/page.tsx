@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import LoginForm from '@/components/forms/LoginForm';
+import Header from '@/components/layout/Header';
 import { Building2, Shield, Users, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
 
 // Wrapper pour isoler LoginForm du parent
@@ -11,7 +12,10 @@ function LoginFormWrapper() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <Header />
+      
+      <div className="min-h-screen flex pt-16">{/* pt-16 for fixed header spacing */}
       {/* Left Side - Branding & Benefits */}
       <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-10 flex-col justify-between relative overflow-hidden">
         {/* Animated Background Pattern */}
@@ -130,6 +134,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RegisterForm from '@/components/forms/RegisterForm';
+import Header from '@/components/layout/Header';
 import { Building2, Shield, Users, TrendingUp, Award, Headphones, X } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -25,7 +26,10 @@ export default function RegisterPage() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <Header />
+      
+      <div className="min-h-screen flex pt-16">{/* pt-16 for fixed header spacing */}
       {/* Error Notification */}
       {errorMessage && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-top-5 duration-300">
@@ -215,6 +219,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
