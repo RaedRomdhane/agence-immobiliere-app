@@ -160,43 +160,10 @@ router.post(
  */
 router.get(
   '/google',
-  passport.authenticate('google-login', { scope: ['profile', 'email'] })
-);
-
-/**
- * @swagger
- * /api/auth/google/callback:
- *   get:
- *     summary: Callback Google OAuth (Login)
- *     tags: [Auth]
- *     description: Callback après authentification Google pour la connexion
- *     responses:
- *       302:
- *         description: Redirection vers le frontend avec le token
- */
-router.get(
-  '/google/callback',
-  (req, res, next) => {
-    passport.authenticate('google-login', { 
-      session: false,
-      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`,
-    }, (err, user, info) => {
-      if (err) {
-        // Rediriger vers le frontend avec le message d'erreur
-        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const errorMessage = encodeURIComponent(err.message || 'Erreur lors de l\'authentification Google');
-        return res.redirect(`${frontendURL}/login?error=${errorMessage}`);
-      }
-      if (!user) {
-        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-        return res.redirect(`${frontendURL}/login?error=google_auth_failed`);
-      }
-      req.user = user;
-      next();
-    })(req, res, next);
-  },
-  ActivityLogger.logLogin(),
-  authController.googleCallback
+  passport.authenticate('google-login', { 
+    scope: ['profile', 'email'],
+    state: 'login'
+  })
 );
 
 /**
@@ -212,36 +179,43 @@ router.get(
  */
 router.get(
   '/google/signup',
-  passport.authenticate('google-signup', { scope: ['profile', 'email'] })
+  passport.authenticate('google-signup', { 
+    scope: ['profile', 'email'],
+    state: 'signup'
+  })
 );
 
 /**
  * @swagger
- * /api/auth/google/signup/callback:
+ * /api/auth/google/callback:
  *   get:
- *     summary: Callback Google OAuth (Signup)
+ *     summary: Callback Google OAuth (Login et Signup)
  *     tags: [Auth]
- *     description: Callback après authentification Google pour l'inscription
+ *     description: Callback après authentification Google - gère login et signup selon le state
  *     responses:
  *       302:
  *         description: Redirection vers le frontend avec le token
  */
 router.get(
-  '/google/signup/callback',
+  '/google/callback',
   (req, res, next) => {
-    passport.authenticate('google-signup', { 
+    // Déterminer la stratégie à utiliser selon le state
+    const state = req.query.state || 'login';
+    const strategy = state === 'signup' ? 'google-signup' : 'google-login';
+    const redirectPage = state === 'signup' ? 'register' : 'login';
+    
+    passport.authenticate(strategy, { 
       session: false,
-      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?error=google_auth_failed`,
     }, (err, user, info) => {
       if (err) {
         // Rediriger vers le frontend avec le message d'erreur
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const errorMessage = encodeURIComponent(err.message || 'Erreur lors de l\'inscription Google');
-        return res.redirect(`${frontendURL}/register?error=${errorMessage}`);
+        const errorMessage = encodeURIComponent(err.message || 'Erreur lors de l\'authentification Google');
+        return res.redirect(`${frontendURL}/${redirectPage}?error=${errorMessage}`);
       }
       if (!user) {
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-        return res.redirect(`${frontendURL}/register?error=google_auth_failed`);
+        return res.redirect(`${frontendURL}/${redirectPage}?error=google_auth_failed`);
       }
       req.user = user;
       next();

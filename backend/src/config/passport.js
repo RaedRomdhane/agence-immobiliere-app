@@ -33,8 +33,9 @@ const configurePassport = () => {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
           callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
           scope: ['profile', 'email'],
+          passReqToCallback: true,
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             // Connecter l'utilisateur (doit exister)
             const user = await AuthService.loginWithGoogle(profile);
@@ -46,17 +47,18 @@ const configurePassport = () => {
       )
     );
 
-    // Stratégie pour l'inscription (signup)
+    // Stratégie pour l'inscription (signup) - utilise la même callback URL
     passport.use(
       'google-signup',
       new GoogleStrategy(
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: process.env.GOOGLE_SIGNUP_CALLBACK_URL || 'http://localhost:5000/api/auth/google/signup/callback',
+          callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
           scope: ['profile', 'email'],
+          passReqToCallback: true,
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             // Créer un nouveau compte
             const user = await AuthService.signupWithGoogle(profile);
