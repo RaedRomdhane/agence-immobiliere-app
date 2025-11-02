@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from "@/components/auth/AuthProvider";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import DashboardHome from '@/components/dashboard/DashboardHome';
 import { 
   Search, 
   Heart, 
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { isLoading } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -35,6 +36,18 @@ export default function Home() {
     );
   }
 
+  // Si l'utilisateur est connecté, afficher le dashboard personnalisé
+  if (isAuthenticated) {
+    return (
+      <>
+        <Header />
+        <DashboardHome />
+        <Footer />
+      </>
+    );
+  }
+
+  // Sinon, afficher la landing page pour les visiteurs
   return (
     <div className="min-h-screen bg-white">
       <Header />

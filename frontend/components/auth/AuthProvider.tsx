@@ -11,6 +11,7 @@ interface User {
   email: string;
   phone?: string;
   role: string;
+  photoURL?: string;
 }
 
 interface AuthContextType {

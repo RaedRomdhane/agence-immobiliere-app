@@ -96,11 +96,28 @@ class AuthService {
     let user = await User.findOne({ email });
 
     if (user) {
-      // Mettre à jour le googleId si l'utilisateur existe
+      // Mettre à jour le googleId et l'avatar si l'utilisateur existe
+      let needsUpdate = false;
+      
       if (!user.googleId) {
         user.googleId = profile.id;
+        needsUpdate = true;
+      }
+      
+      // Mettre à jour l'avatar si disponible
+      const avatar = profile.photos && profile.photos.length > 0 
+        ? profile.photos[0].value 
+        : null;
+      
+      if (avatar && user.avatar !== avatar) {
+        user.avatar = avatar;
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
         await user.save();
       }
+      
       return user;
     }
 
@@ -138,11 +155,17 @@ class AuthService {
     const firstName = nameParts[0] || 'Utilisateur';
     const lastName = nameParts.slice(1).join(' ') || 'Google';
 
+    // Récupérer la photo de profil Google
+    const avatar = profile.photos && profile.photos.length > 0 
+      ? profile.photos[0].value 
+      : null;
+
     user = await User.create({
       firstName,
       lastName,
       email,
       googleId: profile.id,
+      avatar, // Sauvegarder l'avatar Google
       role: 'client',
       // Pas de mot de passe pour les utilisateurs Google OAuth
       // On génère un mot de passe aléatoire pour satisfaire la validation
