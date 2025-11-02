@@ -50,7 +50,7 @@ exports.register = asyncHandler(async (req, res) => {
  * @access  Public
  */
 exports.login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
 
   // Trouver l'utilisateur avec le mot de passe (select: false par défaut)
   const User = require('../models/User');
@@ -78,8 +78,8 @@ exports.login = asyncHandler(async (req, res) => {
     );
   }
 
-  // Générer un token JWT
-  const token = AuthService.generateToken(user);
+  // Générer un token JWT avec durée selon rememberMe
+  const token = AuthService.generateToken(user, rememberMe);
 
   res.json(
     ApiResponse.success('Connexion réussie', {
@@ -148,6 +148,36 @@ exports.logout = asyncHandler(async (req, res) => {
 
   res.json(
     ApiResponse.success('Déconnexion réussie')
+  );
+});
+
+/**
+ * @desc    Demande de réinitialisation de mot de passe
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const result = await AuthService.forgotPassword(email);
+
+  res.json(
+    ApiResponse.success(result.message)
+  );
+});
+
+/**
+ * @desc    Réinitialisation du mot de passe
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  const result = await AuthService.resetPassword(token, newPassword);
+
+  res.json(
+    ApiResponse.success(result.message)
   );
 });
 

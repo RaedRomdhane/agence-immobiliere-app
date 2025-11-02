@@ -12,6 +12,7 @@ export interface RegisterData {
 export interface LoginData {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface User {
@@ -51,11 +52,19 @@ export const authApi = {
   },
 
   /**
-   * Redirection vers Google OAuth
+   * Connexion avec Google OAuth (pour utilisateurs existants)
    */
   googleLogin: () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     window.location.href = `${apiUrl}/auth/google`;
+  },
+
+  /**
+   * Inscription avec Google OAuth (pour créer un nouveau compte)
+   */
+  googleSignup: () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    window.location.href = `${apiUrl}/auth/google/signup`;
   },
 
   /**
@@ -64,6 +73,7 @@ export const authApi = {
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
   },

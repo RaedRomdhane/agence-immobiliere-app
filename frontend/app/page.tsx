@@ -1,9 +1,52 @@
+'use client';
+
 import Image from "next/image";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function Home() {
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <p className="text-lg">Chargement...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+        
+        {/* Indicateur de connexion */}
+        {isAuthenticated && user && (
+          <div className="w-full mb-8 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-green-800">✅ Vous êtes connecté !</p>
+                <p className="text-sm text-green-600">
+                  Bonjour {user.firstName} {user.lastName} ({user.email})
+                </p>
+              </div>
+              <button
+                onClick={logout}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isAuthenticated && (
+          <div className="w-full mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm font-semibold text-yellow-800">⚠️ Non connecté</p>
+            <p className="text-sm text-yellow-600">
+              <a href="/login" className="underline hover:text-yellow-800">Se connecter</a>
+            </p>
+          </div>
+        )}
+
         <Image
           className="dark:invert"
           src="/next.svg"

@@ -22,15 +22,18 @@ export default function RegisterForm() {
     handleSubmit,
     watch,
     formState: { errors },
+    reset,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    mode: 'onBlur',
+    shouldUnregister: false, // Garder les valeurs des champs même après erreur
   });
 
   const password = watch('password');
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
-    setError(null);
+    // Ne pas effacer l'erreur immédiatement - elle sera effacée seulement en cas de succès
 
     try {
       // Nettoyer les données : supprimer phone s'il est vide
@@ -40,6 +43,9 @@ export default function RegisterForm() {
       };
 
       const response = await authApi.register(cleanData);
+      
+      // Effacer les erreurs seulement en cas de succès
+      setError(null);
       
       // Sauvegarder le token
       localStorage.setItem('token', response.data.token);
@@ -69,6 +75,8 @@ export default function RegisterForm() {
       } else {
         setError(message);
       }
+      // Ne pas réinitialiser le formulaire en cas d'erreur
+      // L'utilisateur peut corriger ses informations
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +85,12 @@ export default function RegisterForm() {
   return (
     <div className="w-full max-w-md mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {error && <Alert type="error">{error}</Alert>}
+        {/* Error Message - Plus visible avec animation */}
+        {error && (
+          <Alert type="error" className="animate-in fade-in-50 duration-300">
+            <div className="font-medium">{error}</div>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InputField
@@ -147,7 +160,7 @@ export default function RegisterForm() {
           </div>
         </div>
 
-        <GoogleButton onClick={() => authApi.googleLogin()}>
+        <GoogleButton onClick={() => authApi.googleSignup()}>
           S&apos;inscrire avec Google
         </GoogleButton>
 

@@ -101,9 +101,15 @@ const forgotPasswordValidation = [
  * Validation pour la réinitialisation de mot de passe
  */
 const resetPasswordValidation = [
-  body('password')
+  body('token')
     .notEmpty()
-    .withMessage('Le mot de passe est requis')
+    .withMessage('Le token est requis')
+    .isString()
+    .withMessage('Le token doit être une chaîne de caractères'),
+
+  body('newPassword')
+    .notEmpty()
+    .withMessage('Le nouveau mot de passe est requis')
     .isLength({ min: 8 })
     .withMessage('Le mot de passe doit contenir au moins 8 caractères')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
@@ -113,7 +119,7 @@ const resetPasswordValidation = [
     .notEmpty()
     .withMessage('La confirmation du mot de passe est requise')
     .custom((value, { req }) => {
-      if (value !== req.body.password) {
+      if (value !== req.body.newPassword) {
         throw new Error('Les mots de passe ne correspondent pas');
       }
       return true;
@@ -123,6 +129,6 @@ const resetPasswordValidation = [
 module.exports = {
   registerValidation,
   loginValidation,
-  forgotPasswordValidation,
   resetPasswordValidation,
+  forgotPasswordValidation,
 };

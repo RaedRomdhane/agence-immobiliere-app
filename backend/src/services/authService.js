@@ -81,15 +81,15 @@ class AuthService {
   }
 
   /**
-   * Enregistre un utilisateur via Google OAuth
+   * Connecter un utilisateur avec Google OAuth (Login uniquement)
    * @param {Object} profile - Profil Google
    * @param {String} profile.id - Google ID
    * @param {String} profile.displayName - Nom complet
    * @param {Array} profile.emails - Emails
    * @param {String} profile.emails[].value - Email
-   * @returns {Promise<Object>} Utilisateur créé ou existant
+   * @returns {Promise<Object>} Utilisateur existant
    */
-  static async registerWithGoogle(profile) {
+  static async loginWithGoogle(profile) {
     const email = profile.emails[0].value;
 
     // Vérifier si l'utilisateur existe déjà
@@ -102,6 +102,34 @@ class AuthService {
         await user.save();
       }
       return user;
+    }
+
+    // L'utilisateur n'existe pas - rejeter la connexion Google
+    throw ApiError.unauthorized(
+      'Aucun compte trouvé avec cet email. Veuillez vous inscrire d\'abord avec votre email.'
+    );
+  }
+
+  /**
+   * Créer un nouveau compte avec Google OAuth (Signup uniquement)
+   * @param {Object} profile - Profil Google
+   * @param {String} profile.id - Google ID
+   * @param {String} profile.displayName - Nom complet
+   * @param {Array} profile.emails - Emails
+   * @param {String} profile.emails[].value - Email
+   * @returns {Promise<Object>} Utilisateur créé
+   */
+  static async signupWithGoogle(profile) {
+    const email = profile.emails[0].value;
+
+    // Vérifier si l'utilisateur existe déjà
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // L'utilisateur existe déjà - rejeter l'inscription
+      throw ApiError.conflict(
+        'Un compte existe déjà avec cet email. Veuillez vous connecter.'
+      );
     }
 
     // Créer un nouvel utilisateur
@@ -129,6 +157,37 @@ class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * Enregistre un utilisateur via Google OAuth (Compatibilité - utilise loginWithGoogle)
+   * @deprecated Utiliser loginWithGoogle ou signupWithGoogle à la place
+   * @param {Object} profile - Profil Google
+   * @param {String} profile.id - Google ID
+   * @param {String} profile.displayName - Nom complet
+   * @param {Array} profile.emails - Emails
+   * @param {String} profile.emails[].value - Email
+   * @returns {Promise<Object>} Utilisateur créé ou existant
+   */
+  static async registerWithGoogle(profile) {
+    const email = profile.emails[0].value;
+
+    // Vérifier si l'utilisateur existe déjà
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // Mettre à jour le googleId si l'utilisateur existe
+      if (!user.googleId) {
+        user.googleId = profile.id;
+        await user.save();
+      }
+      return user;
+    }
+
+    // L'utilisateur n'existe pas - rejeter la connexion Google
+    throw ApiError.unauthorized(
+      'Aucun compte trouvé avec cet email. Veuillez vous inscrire d\'abord avec votre email.'
+    );
   }
 
   /**
@@ -262,10 +321,14 @@ class AuthService {
   /**
    * Génère un token JWT pour l'utilisateur
    * @param {Object} user - Utilisateur
+   * @param {Boolean} rememberMe - Si true, token valide 30 jours, sinon 7 jours
    * @returns {String} JWT token
    */
-  static generateToken(user) {
+  static generateToken(user, rememberMe = false) {
     const jwt = require('jsonwebtoken');
+    
+    // Si rememberMe est true, le token expire dans 30 jours, sinon 7 jours
+    const expiresIn = rememberMe ? '30d' : '7d';
     
     return jwt.sign(
       { 
@@ -275,9 +338,180 @@ class AuthService {
       },
       process.env.JWT_SECRET || 'votre-secret-jwt-super-securise',
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        expiresIn,
       }
     );
+  }
+
+  /**
+   * Génère un token de réinitialisation de mot de passe et envoie l'email
+   * @param {String} email - Email de l'utilisateur
+   * @returns {Promise<Object>} Résultat de l'envoi
+   */
+  static async forgotPassword(email) {
+    // Trouver l'utilisateur
+    const user = await User.findOne({ email: email.toLowerCase() });
+    
+    // Ne pas divulguer si l'email existe ou non (sécurité)
+    if (!user) {
+      // Retourner un succès même si l'email n'existe pas
+      return {
+        message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
+      };
+    }
+
+    // Générer un token sécurisé
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Hasher le token avant de le stocker
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    
+    // Enregistrer le token hashé et sa date d'expiration (1 heure)
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 heure
+    await user.save({ validateBeforeSave: false });
+
+    // Créer l'URL de réinitialisation
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+    // Préparer l'email
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔒 Réinitialisation de mot de passe</h1>
+          </div>
+          <div class="content">
+            <p>Bonjour ${user.firstName},</p>
+            
+            <p>Vous avez demandé à réinitialiser votre mot de passe pour votre compte <strong>${process.env.APP_NAME || 'Agence Immobilière'}</strong>.</p>
+            
+            <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
+            
+            <center>
+              <a href="${resetUrl}" class="button">Réinitialiser mon mot de passe</a>
+            </center>
+            
+            <p style="color: #666; font-size: 14px;">Ou copiez ce lien dans votre navigateur :</p>
+            <p style="background: #fff; padding: 10px; border: 1px solid #ddd; word-break: break-all; font-size: 12px;">${resetUrl}</p>
+            
+            <div class="warning">
+              <strong>⚠️ Important :</strong>
+              <ul>
+                <li>Ce lien est valide pendant <strong>1 heure</strong></li>
+                <li>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email</li>
+                <li>Votre mot de passe actuel restera inchangé tant que vous n'en créerez pas un nouveau</li>
+              </ul>
+            </div>
+            
+            <p>Cordialement,<br>L'équipe ${process.env.APP_NAME || 'Agence Immobilière'}</p>
+          </div>
+          <div class="footer">
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Envoyer l'email
+    try {
+      const transporter = this.getEmailTransporter();
+      const info = await transporter.sendMail({
+        from: `"${process.env.APP_NAME || 'Agence Immobilière'}" <${process.env.SMTP_FROM || 'noreply@example.com'}>`,
+        to: user.email,
+        subject: '🔒 Réinitialisation de votre mot de passe',
+        html: emailHtml,
+      });
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Email de réinitialisation envoyé:', {
+          to: user.email,
+          messageId: info.messageId,
+          previewURL: nodemailer.getTestMessageUrl(info),
+        });
+      }
+
+      return {
+        message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
+      };
+    } catch (error) {
+      // En développement, on log l'erreur mais on continue
+      // (problème SSL avec Ethereal)
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('⚠️  Erreur SMTP (ignorée en dev):', error.message);
+        console.log('📧 Token de réinitialisation créé pour:', user.email);
+        console.log('🔗 Lien de réinitialisation:', resetUrl);
+        
+        // Retourner quand même un succès en développement
+        return {
+          message: 'Si cet email existe, un lien de réinitialisation a été envoyé',
+          devInfo: {
+            warning: 'Email non envoyé (erreur SMTP en développement)',
+            resetUrl: resetUrl,
+          }
+        };
+      }
+      
+      // En production, nettoyer le token et propager l'erreur
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      
+      throw ApiError.internal('Erreur lors de l\'envoi de l\'email de réinitialisation');
+    }
+  }
+
+  /**
+   * Réinitialise le mot de passe avec un token valide
+   * @param {String} token - Token de réinitialisation (non hashé)
+   * @param {String} newPassword - Nouveau mot de passe
+   * @returns {Promise<Object>} Résultat
+   */
+  static async resetPassword(token, newPassword) {
+    // Hasher le token reçu pour le comparer avec celui en DB
+    const crypto = require('crypto');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    // Trouver l'utilisateur avec ce token et vérifier qu'il n'a pas expiré
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw ApiError.badRequest('Token invalide ou expiré');
+    }
+
+    // Mettre à jour le mot de passe (sera automatiquement hashé par le middleware pre-save)
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    return {
+      message: 'Mot de passe réinitialisé avec succès',
+    };
   }
 }
 

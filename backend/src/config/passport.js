@@ -24,6 +24,53 @@ const configurePassport = () => {
 
   // Configuration de la stratégie Google OAuth (seulement si les credentials sont disponibles)
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    // Stratégie pour la connexion (login)
+    passport.use(
+      'google-login',
+      new GoogleStrategy(
+        {
+          clientID: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
+          scope: ['profile', 'email'],
+          passReqToCallback: true,
+        },
+        async (req, accessToken, refreshToken, profile, done) => {
+          try {
+            // Connecter l'utilisateur (doit exister)
+            const user = await AuthService.loginWithGoogle(profile);
+            done(null, user);
+          } catch (error) {
+            done(error, null);
+          }
+        }
+      )
+    );
+
+    // Stratégie pour l'inscription (signup) - utilise la même callback URL
+    passport.use(
+      'google-signup',
+      new GoogleStrategy(
+        {
+          clientID: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
+          scope: ['profile', 'email'],
+          passReqToCallback: true,
+        },
+        async (req, accessToken, refreshToken, profile, done) => {
+          try {
+            // Créer un nouveau compte
+            const user = await AuthService.signupWithGoogle(profile);
+            done(null, user);
+          } catch (error) {
+            done(error, null);
+          }
+        }
+      )
+    );
+
+    // Stratégie par défaut (pour compatibilité - utilise registerWithGoogle)
     passport.use(
       new GoogleStrategy(
         {
