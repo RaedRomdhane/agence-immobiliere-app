@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import DashboardHome from '@/components/dashboard/DashboardHome';
+import AdminDashboard from '@/components/admin/AdminDashboard';
 import { 
   Search, 
   Heart, 
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -38,6 +39,18 @@ export default function Home() {
 
   // Si l'utilisateur est connecté, afficher le dashboard personnalisé
   if (isAuthenticated) {
+    // Si l'utilisateur est admin, afficher le dashboard admin
+    if (user?.role === 'admin') {
+      return (
+        <>
+          <Header />
+          <AdminDashboard />
+          <Footer />
+        </>
+      );
+    }
+    
+    // Sinon, afficher le dashboard client
     return (
       <>
         <Header />
