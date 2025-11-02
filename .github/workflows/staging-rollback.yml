@@ -1,0 +1,295 @@
+name: Rollback Staging
+
+# Workflow manuel pour rollback vers une version précédente
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag de version à déployer (ex: staging-20250102-143000)'
+        required: true
+        type: string
+      reason:
+        description: 'Raison du rollback'
+        required: false
+        type: string
+        default: 'Rollback manuel'
+
+env:
+  NODE_VERSION: '20.x'
+  STAGING_URL: 'https://agence-immobiliere-staging.azurewebsites.net'
+
+jobs:
+  # Job 1: Validation du tag
+  validate:
+    name: Valider le tag
+    runs-on: ubuntu-latest
+    
+    outputs:
+      tag_exists: ${{ steps.check.outputs.exists }}
+    
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Vérifier l'existence du tag
+        id: check
+        run: |
+          if git rev-parse "${{ github.event.inputs.tag }}" >/dev/null 2>&1; then
+            echo "✅ Tag trouvé: ${{ github.event.inputs.tag }}"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Tag non trouvé: ${{ github.event.inputs.tag }}"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 📋 Informations du tag
+        run: |
+          echo "📊 Informations du rollback:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Raison**: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Déclenché par**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date**: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📝 Commit du tag:" >> $GITHUB_STEP_SUMMARY
+          git show ${{ github.event.inputs.tag }} --no-patch >> $GITHUB_STEP_SUMMARY
+
+  # Job 2: Créer un snapshot de l'état actuel
+  backup-current:
+    name: Backup État Actuel
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+      - name: 📥 Checkout du code actuel
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Créer un tag de backup
+        run: |
+          BACKUP_TAG="staging-backup-$(date +'%Y%m%d-%H%M%S')"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a $BACKUP_TAG -m "Backup avant rollback vers ${{ github.event.inputs.tag }}"
+          git push origin $BACKUP_TAG
+          echo "✅ Backup créé: $BACKUP_TAG"
+          echo "BACKUP_TAG=$BACKUP_TAG" >> $GITHUB_ENV
+
+      - name: 📄 Sauvegarder les logs
+        run: |
+          echo "Backup effectué le $(date)" > backup-info.txt
+          echo "Tag de backup: $BACKUP_TAG" >> backup-info.txt
+          echo "Rollback vers: ${{ github.event.inputs.tag }}" >> backup-info.txt
+          echo "Raison: ${{ github.event.inputs.reason }}" >> backup-info.txt
+
+      - name: 📤 Upload backup info
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-info
+          path: backup-info.txt
+          retention-days: 90
+
+  # Job 3: Rollback Backend
+  rollback-backend:
+    name: Rollback Backend
+    runs-on: ubuntu-latest
+    needs: backup-current
+    environment:
+      name: staging-backend
+      url: ${{ env.STAGING_URL }}/health
+    
+    steps:
+      - name: 📥 Checkout du tag spécifié
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Installation Backend
+        working-directory: ./backend
+        run: npm ci --production
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔄 Deploy version précédente
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.STAGING_BACKEND_APP_NAME }}
+          package: ./backend
+
+      - name: ♻️ Restart Backend
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az webapp restart --name ${{ secrets.STAGING_BACKEND_APP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+      - name: ⏳ Attendre le redémarrage
+        run: sleep 30
+
+  # Job 4: Rollback Frontend
+  rollback-frontend:
+    name: Rollback Frontend
+    runs-on: ubuntu-latest
+    needs: backup-current
+    environment:
+      name: staging-frontend
+      url: ${{ secrets.STAGING_FRONTEND_URL }}
+    
+    steps:
+      - name: 📥 Checkout du tag spécifié
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Installation Frontend
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: 🏗️ Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CLIENT_ID }}
+          NODE_ENV: production
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔄 Deploy version précédente
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.STAGING_STATIC_WEB_APP_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/frontend"
+          output_location: ".next"
+          skip_app_build: true
+
+  # Job 5: Vérification post-rollback
+  verify-rollback:
+    name: Vérifier le Rollback
+    runs-on: ubuntu-latest
+    needs: [rollback-backend, rollback-frontend]
+    
+    steps:
+      - name: ⏳ Attendre la stabilisation
+        run: sleep 15
+
+      - name: 🏥 Health Check Backend
+        run: |
+          echo "🔍 Vérification du backend après rollback..."
+          max_attempts=5
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.STAGING_URL }}/health)
+            
+            if [ $response -eq 200 ]; then
+              echo "✅ Backend opérationnel (HTTP $response)"
+              break
+            else
+              attempt=$((attempt + 1))
+              echo "⏳ Tentative $attempt/$max_attempts - Backend répond HTTP $response"
+              sleep 10
+            fi
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ Backend ne répond pas après $max_attempts tentatives"
+            exit 1
+          fi
+
+      - name: 🏥 Health Check Frontend
+        run: |
+          echo "🔍 Vérification du frontend après rollback..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.STAGING_FRONTEND_URL }})
+          
+          if [ $response -eq 200 ]; then
+            echo "✅ Frontend opérationnel (HTTP $response)"
+          else
+            echo "❌ Frontend ne répond pas correctement (HTTP $response)"
+            exit 1
+          fi
+
+      - name: 🧪 Test API
+        run: |
+          echo "🔍 Test de l'API après rollback..."
+          response=$(curl -s ${{ env.STAGING_URL }}/api)
+          
+          if echo "$response" | grep -q "version"; then
+            echo "✅ API répond correctement"
+          else
+            echo "⚠️ API répond mais format inattendu"
+          fi
+
+  # Job 6: Notification et documentation
+  notify:
+    name: Notification Rollback
+    runs-on: ubuntu-latest
+    needs: [backup-current, verify-rollback]
+    if: always()
+    
+    steps:
+      - name: 📥 Download backup info
+        uses: actions/download-artifact@v4
+        with:
+          name: backup-info
+        continue-on-error: true
+
+      - name: 📊 Résumé du rollback
+        run: |
+          echo "# 🔄 Rollback Staging Effectué" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Détails" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version déployée**: ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Raison**: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Déclenché par**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date**: $(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Résultats" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backup**: ${{ needs.backup-current.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Rollback Backend**: ${{ needs.rollback-backend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Rollback Frontend**: ${{ needs.rollback-frontend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Vérification**: ${{ needs.verify-rollback.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend**: ${{ env.STAGING_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: ${{ secrets.STAGING_FRONTEND_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ℹ️ Information Backup" >> $GITHUB_STEP_SUMMARY
+          if [ -f backup-info.txt ]; then
+            cat backup-info.txt >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: ✅ Rollback réussi
+        if: needs.verify-rollback.result == 'success'
+        run: |
+          echo "🎉 Rollback vers ${{ github.event.inputs.tag }} réussi!"
+          echo "✅ L'application staging fonctionne correctement"
+
+      - name: ❌ Rollback échoué
+        if: needs.verify-rollback.result != 'success'
+        run: |
+          echo "❌ Le rollback a échoué"
+          echo "⚠️ Action manuelle requise"
+          echo "📋 Consultez les logs pour plus de détails"
+          exit 1
