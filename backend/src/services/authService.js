@@ -321,10 +321,14 @@ class AuthService {
   /**
    * Génère un token JWT pour l'utilisateur
    * @param {Object} user - Utilisateur
+   * @param {Boolean} rememberMe - Si true, token valide 30 jours, sinon 7 jours
    * @returns {String} JWT token
    */
-  static generateToken(user) {
+  static generateToken(user, rememberMe = false) {
     const jwt = require('jsonwebtoken');
+    
+    // Si rememberMe est true, le token expire dans 30 jours, sinon 7 jours
+    const expiresIn = rememberMe ? '30d' : '7d';
     
     return jwt.sign(
       { 
@@ -334,7 +338,7 @@ class AuthService {
       },
       process.env.JWT_SECRET || 'votre-secret-jwt-super-securise',
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        expiresIn,
       }
     );
   }

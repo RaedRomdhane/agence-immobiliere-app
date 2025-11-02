@@ -1,61 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import LoginForm from '@/components/forms/LoginForm';
-import { Building2, Shield, Users, TrendingUp, Clock, CheckCircle2, X } from 'lucide-react';
+import { Building2, Shield, Users, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+
+// Wrapper pour isoler LoginForm du parent
+function LoginFormWrapper() {
+  return <LoginForm />;
+}
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const error = searchParams.get('error');
-    if (error) {
-      setErrorMessage(decodeURIComponent(error));
-      
-      // Effacer l'erreur de l'URL après 5 secondes
-      const timer = setTimeout(() => {
-        setErrorMessage(null);
-        window.history.replaceState({}, '', '/login');
-      }, 5000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams]);
-
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Error Notification */}
-      {errorMessage && (
-        <div className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-top-5 duration-300">
-          <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg p-4 flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <X className="h-5 w-5 text-red-600" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-800 mb-1">
-                Erreur de connexion
-              </h3>
-              <p className="text-sm text-red-700">
-                {errorMessage}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setErrorMessage(null);
-                window.history.replaceState({}, '', '/login');
-              }}
-              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Left Side - Branding & Benefits */}
       <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-10 flex-col justify-between relative overflow-hidden">
         {/* Animated Background Pattern */}
@@ -156,7 +112,9 @@ export default function LoginPage() {
 
           {/* Form */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-            <LoginForm />
+            <Suspense fallback={<div>Chargement...</div>}>
+              <LoginFormWrapper />
+            </Suspense>
           </div>
 
           {/* Footer */}

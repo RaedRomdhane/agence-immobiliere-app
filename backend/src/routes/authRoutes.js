@@ -4,6 +4,7 @@ const authController = require('../controllers/authController');
 const { registerValidation, loginValidation, forgotPasswordValidation, resetPasswordValidation } = require('../validators/authValidator');
 const { validate } = require('../middlewares/validator');
 const ActivityLogger = require('../middlewares/activityLogger');
+const { protect } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -255,8 +256,7 @@ router.get(
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-// Note: Cette route nécessitera un middleware d'authentification (à créer)
-// router.get('/me', protect, authController.getMe);
+router.get('/me', protect, authController.getMe);
 
 /**
  * @swagger

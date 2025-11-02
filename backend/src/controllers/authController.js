@@ -50,7 +50,7 @@ exports.register = asyncHandler(async (req, res) => {
  * @access  Public
  */
 exports.login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
 
   // Trouver l'utilisateur avec le mot de passe (select: false par défaut)
   const User = require('../models/User');
@@ -78,8 +78,8 @@ exports.login = asyncHandler(async (req, res) => {
     );
   }
 
-  // Générer un token JWT
-  const token = AuthService.generateToken(user);
+  // Générer un token JWT avec durée selon rememberMe
+  const token = AuthService.generateToken(user, rememberMe);
 
   res.json(
     ApiResponse.success('Connexion réussie', {
