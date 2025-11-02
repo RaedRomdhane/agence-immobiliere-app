@@ -147,7 +147,7 @@ export default function RegisterForm() {
           </div>
         </div>
 
-        <GoogleButton onClick={() => authApi.googleLogin()}>
+        <GoogleButton onClick={() => authApi.googleSignup()}>
           S&apos;inscrire avec Google
         </GoogleButton>
 

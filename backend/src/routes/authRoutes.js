@@ -151,25 +151,25 @@ router.post(
  * @swagger
  * /api/auth/google:
  *   get:
- *     summary: Authentification Google OAuth
+ *     summary: Connexion Google OAuth (Login uniquement)
  *     tags: [Auth]
- *     description: Redirige vers la page de connexion Google
+ *     description: Redirige vers la page de connexion Google pour se connecter avec un compte existant
  *     responses:
  *       302:
  *         description: Redirection vers Google
  */
 router.get(
   '/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google-login', { scope: ['profile', 'email'] })
 );
 
 /**
  * @swagger
  * /api/auth/google/callback:
  *   get:
- *     summary: Callback Google OAuth
+ *     summary: Callback Google OAuth (Login)
  *     tags: [Auth]
- *     description: Callback après authentification Google
+ *     description: Callback après authentification Google pour la connexion
  *     responses:
  *       302:
  *         description: Redirection vers le frontend avec le token
@@ -177,7 +177,7 @@ router.get(
 router.get(
   '/google/callback',
   (req, res, next) => {
-    passport.authenticate('google', { 
+    passport.authenticate('google-login', { 
       session: false,
       failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=google_auth_failed`,
     }, (err, user, info) => {
@@ -190,6 +190,58 @@ router.get(
       if (!user) {
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
         return res.redirect(`${frontendURL}/login?error=google_auth_failed`);
+      }
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
+  ActivityLogger.logLogin(),
+  authController.googleCallback
+);
+
+/**
+ * @swagger
+ * /api/auth/google/signup:
+ *   get:
+ *     summary: Inscription Google OAuth (Signup uniquement)
+ *     tags: [Auth]
+ *     description: Redirige vers la page de connexion Google pour créer un nouveau compte
+ *     responses:
+ *       302:
+ *         description: Redirection vers Google
+ */
+router.get(
+  '/google/signup',
+  passport.authenticate('google-signup', { scope: ['profile', 'email'] })
+);
+
+/**
+ * @swagger
+ * /api/auth/google/signup/callback:
+ *   get:
+ *     summary: Callback Google OAuth (Signup)
+ *     tags: [Auth]
+ *     description: Callback après authentification Google pour l'inscription
+ *     responses:
+ *       302:
+ *         description: Redirection vers le frontend avec le token
+ */
+router.get(
+  '/google/signup/callback',
+  (req, res, next) => {
+    passport.authenticate('google-signup', { 
+      session: false,
+      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?error=google_auth_failed`,
+    }, (err, user, info) => {
+      if (err) {
+        // Rediriger vers le frontend avec le message d'erreur
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const errorMessage = encodeURIComponent(err.message || 'Erreur lors de l\'inscription Google');
+        return res.redirect(`${frontendURL}/register?error=${errorMessage}`);
+      }
+      if (!user) {
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        return res.redirect(`${frontendURL}/register?error=google_auth_failed`);
       }
       req.user = user;
       next();

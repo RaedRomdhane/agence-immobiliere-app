@@ -81,7 +81,87 @@ class AuthService {
   }
 
   /**
-   * Enregistre un utilisateur via Google OAuth
+   * Connecter un utilisateur avec Google OAuth (Login uniquement)
+   * @param {Object} profile - Profil Google
+   * @param {String} profile.id - Google ID
+   * @param {String} profile.displayName - Nom complet
+   * @param {Array} profile.emails - Emails
+   * @param {String} profile.emails[].value - Email
+   * @returns {Promise<Object>} Utilisateur existant
+   */
+  static async loginWithGoogle(profile) {
+    const email = profile.emails[0].value;
+
+    // Vérifier si l'utilisateur existe déjà
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // Mettre à jour le googleId si l'utilisateur existe
+      if (!user.googleId) {
+        user.googleId = profile.id;
+        await user.save();
+      }
+      return user;
+    }
+
+    // L'utilisateur n'existe pas - rejeter la connexion Google
+    throw ApiError.unauthorized(
+      'Aucun compte trouvé avec cet email. Veuillez vous inscrire d\'abord avec votre email.'
+    );
+  }
+
+  /**
+   * Créer un nouveau compte avec Google OAuth (Signup uniquement)
+   * @param {Object} profile - Profil Google
+   * @param {String} profile.id - Google ID
+   * @param {String} profile.displayName - Nom complet
+   * @param {Array} profile.emails - Emails
+   * @param {String} profile.emails[].value - Email
+   * @returns {Promise<Object>} Utilisateur créé
+   */
+  static async signupWithGoogle(profile) {
+    const email = profile.emails[0].value;
+
+    // Vérifier si l'utilisateur existe déjà
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // L'utilisateur existe déjà - rejeter l'inscription
+      throw ApiError.conflict(
+        'Un compte existe déjà avec cet email. Veuillez vous connecter.'
+      );
+    }
+
+    // Créer un nouvel utilisateur
+    // Diviser le displayName en firstName et lastName
+    const nameParts = profile.displayName.split(' ');
+    const firstName = nameParts[0] || 'Utilisateur';
+    const lastName = nameParts.slice(1).join(' ') || 'Google';
+
+    user = await User.create({
+      firstName,
+      lastName,
+      email,
+      googleId: profile.id,
+      role: 'client',
+      // Pas de mot de passe pour les utilisateurs Google OAuth
+      // On génère un mot de passe aléatoire pour satisfaire la validation
+      password: Math.random().toString(36).slice(-12) + 'Aa1!',
+    });
+
+    // Envoyer l'email de bienvenue
+    try {
+      await this.sendWelcomeEmail(user);
+    } catch (emailError) {
+      console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', emailError);
+    }
+
+    return user;
+  }
+
+  /**
+   * Enregistre un utilisateur via Google OAuth (Compatibilité - utilise loginWithGoogle)
+   * @deprecated Utiliser loginWithGoogle ou signupWithGoogle à la place
    * @param {Object} profile - Profil Google
    * @param {String} profile.id - Google ID
    * @param {String} profile.displayName - Nom complet
