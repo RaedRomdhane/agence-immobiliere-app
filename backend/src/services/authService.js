@@ -104,31 +104,10 @@ class AuthService {
       return user;
     }
 
-    // Créer un nouvel utilisateur
-    // Diviser le displayName en firstName et lastName
-    const nameParts = profile.displayName.split(' ');
-    const firstName = nameParts[0] || 'Utilisateur';
-    const lastName = nameParts.slice(1).join(' ') || 'Google';
-
-    user = await User.create({
-      firstName,
-      lastName,
-      email,
-      googleId: profile.id,
-      role: 'client',
-      // Pas de mot de passe pour les utilisateurs Google OAuth
-      // On génère un mot de passe aléatoire pour satisfaire la validation
-      password: Math.random().toString(36).slice(-12) + 'Aa1!',
-    });
-
-    // Envoyer l'email de bienvenue
-    try {
-      await this.sendWelcomeEmail(user);
-    } catch (emailError) {
-      console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', emailError);
-    }
-
-    return user;
+    // L'utilisateur n'existe pas - rejeter la connexion Google
+    throw ApiError.unauthorized(
+      'Aucun compte trouvé avec cet email. Veuillez vous inscrire d\'abord avec votre email.'
+    );
   }
 
   /**
