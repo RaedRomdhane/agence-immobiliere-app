@@ -6,6 +6,9 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import DashboardHome from '@/components/dashboard/DashboardHome';
 import AdminDashboard from '@/components/admin/AdminDashboard';
+import Alert from '@/components/ui/Alert';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   Search, 
   Heart, 
@@ -23,8 +26,30 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-export default function Home() {
+// Composant qui utilise useSearchParams (doit être wrappé dans Suspense)
+function HomeContent() {
   const { isLoading, isAuthenticated, user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  useEffect(() => {
+    // Vérifier si l'utilisateur vient de s'inscrire
+    const registered = searchParams.get('registered');
+    if (registered === 'true') {
+      setShowSuccessToast(true);
+      
+      // Nettoyer l'URL après 100ms
+      setTimeout(() => {
+        router.replace('/', { scroll: false });
+      }, 100);
+
+      // Masquer le toast après 5 secondes
+      setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 5000);
+    }
+  }, [searchParams, router]);
 
   if (isLoading) {
     return (
@@ -44,6 +69,20 @@ export default function Home() {
       return (
         <>
           <Header />
+          {/* Success Toast - Position fixe en haut à droite */}
+          {showSuccessToast && (
+            <div className="fixed top-20 right-4 z-50 max-w-md animate-in slide-in-from-right duration-300">
+              <Alert type="success" className="shadow-lg">
+                <div className="flex items-center">
+                  <CheckCircle2 className="h-5 w-5 mr-2 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">Bienvenue {user?.firstName} !</p>
+                    <p className="text-sm">Votre compte a été créé avec succès.</p>
+                  </div>
+                </div>
+              </Alert>
+            </div>
+          )}
           <AdminDashboard />
           <Footer />
         </>
@@ -54,6 +93,20 @@ export default function Home() {
     return (
       <>
         <Header />
+        {/* Success Toast - Position fixe en haut à droite */}
+        {showSuccessToast && (
+          <div className="fixed top-20 right-4 z-50 max-w-md animate-in slide-in-from-right duration-300">
+            <Alert type="success" className="shadow-lg">
+              <div className="flex items-center">
+                <CheckCircle2 className="h-5 w-5 mr-2 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">Bienvenue {user?.firstName} !</p>
+                  <p className="text-sm">Votre compte a été créé avec succès.</p>
+                </div>
+              </div>
+            </Alert>
+          </div>
+        )}
         <DashboardHome />
         <Footer />
       </>
@@ -437,5 +490,21 @@ export default function Home() {
 
       <Footer />
     </div>
+  );
+}
+
+// Wrapper principal avec Suspense pour Next.js 16
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

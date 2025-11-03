@@ -51,8 +51,8 @@ export default function RegisterForm() {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Rediriger directement vers la page d'accueil (l'utilisateur est déjà connecté)
-      router.push('/');
+      // Rediriger directement vers la page d'accueil avec paramètre de succès
+      router.push('/?registered=true');
     } catch (err: any) {
       // Log pour débogage - afficher la structure complète
       console.error('Erreur complète:', err);
