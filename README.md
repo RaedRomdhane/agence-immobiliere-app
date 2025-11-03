@@ -5,7 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green)](https://www.mongodb.com/)
 
-## 📋 Description
+## 📋 Description 
 
 Plateforme web moderne et intelligente pour la gestion et la promotion de biens immobiliers. Le site offre des fonctionnalités avancées telles que la recherche intelligente, la géolocalisation, la génération de QR Codes, et un chatbot IA.
 
