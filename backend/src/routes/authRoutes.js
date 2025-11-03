@@ -390,4 +390,67 @@ router.post('/forgot-password', forgotPasswordValidation, validate, authControll
  */
 router.post('/reset-password', resetPasswordValidation, validate, authController.resetPassword);
 
+/**
+ * @swagger
+ * /api/auth/google:
+ *   get:
+ *     summary: Initier l'authentification Google OAuth (connexion)
+ *     tags: [Auth]
+ *     description: Redirige vers Google pour l'authentification d'utilisateurs existants
+ *     responses:
+ *       302:
+ *         description: Redirection vers Google OAuth
+ */
+router.get(
+  '/google',
+  passport.authenticate('google-login', {
+    scope: ['profile', 'email'],
+    state: 'login'
+  })
+);
+
+/**
+ * @swagger
+ * /api/auth/google/signup:
+ *   get:
+ *     summary: Initier l'authentification Google OAuth (inscription)
+ *     tags: [Auth]
+ *     description: Redirige vers Google pour l'inscription de nouveaux utilisateurs
+ *     responses:
+ *       302:
+ *         description: Redirection vers Google OAuth
+ */
+router.get(
+  '/google/signup',
+  passport.authenticate('google-signup', {
+    scope: ['profile', 'email'],
+    state: 'signup'
+  })
+);
+
+/**
+ * @swagger
+ * /api/auth/google/callback:
+ *   get:
+ *     summary: Callback Google OAuth
+ *     tags: [Auth]
+ *     description: Gère le retour de Google après authentification
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Code d'autorisation Google
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: État (login ou signup)
+ *     responses:
+ *       302:
+ *         description: Redirection vers le frontend avec token
+ */
+router.get('/google/callback', authController.googleCallback);
+
 module.exports = router;

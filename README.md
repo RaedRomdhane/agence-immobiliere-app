@@ -58,7 +58,60 @@ Plateforme web moderne et intelligente pour la gestion et la promotion de biens 
 
 ---
 
-## 📁 Structure du projet
+## � Déploiement
+
+### 🌐 Environnement Staging
+
+L'application dispose d'un déploiement automatique en **staging** via **GitHub Actions** :
+
+- **Frontend (Vercel):** `https://[votre-app]-staging.vercel.app`
+- **Backend (Railway):** `https://[votre-app]-staging.railway.app`
+- **Base de données:** MongoDB Atlas (M0 Free Tier)
+
+#### Déploiement automatique
+- ✅ Déclenché automatiquement après un **merge sur main**
+- ✅ Tests automatiques (lint, unit tests, build)
+- ✅ Health checks et smoke tests
+- ✅ Rollback automatique en cas d'échec
+
+#### Guides de déploiement
+- 📘 **[Guide de configuration staging](docs/STAGING_SETUP_GUIDE.md)** - Configuration complète MongoDB Atlas, Railway, Vercel et GitHub Secrets
+- 📕 **[Guide de rollback](docs/ROLLBACK_GUIDE.md)** - Procédures de rollback automatique et manuel
+- 📗 **[Plan de déploiement AW-21](docs/AW-21-DEPLOYMENT-PLAN.md)** - Architecture et stratégie de déploiement
+
+#### Variables d'environnement
+
+**Backend (Railway):**
+```bash
+NODE_ENV=staging
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+FRONTEND_URL=https://[votre-app]-staging.vercel.app
+```
+
+**Frontend (Vercel):**
+```bash
+NEXT_PUBLIC_API_URL=https://[votre-app]-staging.railway.app/api
+NEXT_PUBLIC_APP_NAME=Agence Immobilière (Staging)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
+```
+
+#### Workflow CI/CD
+
+Le pipeline GitHub Actions exécute :
+1. **Test** - Lint, tests unitaires, build
+2. **Deploy Backend** - Déploiement Railway + health check
+3. **Deploy Frontend** - Déploiement Vercel
+4. **Smoke Test** - Validation des endpoints critiques
+5. **Rollback** - Retour automatique à la version précédente si échec
+
+Voir [`.github/workflows/staging-deploy.yml`](.github/workflows/staging-deploy.yml) pour plus de détails.
+
+---
+
+## �📁 Structure du projet
 
 ```
 agence-immobiliere-app/
