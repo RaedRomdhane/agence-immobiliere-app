@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import ResetPasswordForm from '@/components/forms/ResetPasswordForm';
 import { Building2, Shield, Lock, AlertTriangle } from 'lucide-react';
 
@@ -6,7 +7,7 @@ export const metadata = {
   description: 'Définissez un nouveau mot de passe pour votre compte',
 };
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Left Side - Branding & Security Info */}
@@ -136,5 +137,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
