@@ -118,7 +118,7 @@ export default function RegisterForm() {
         <InputField
           label="Téléphone (optionnel)"
           type="tel"
-          placeholder="+21612345678 ou 12345678"
+          placeholder="+21698765432 ou 98765432"
           {...register('phone')}
           error={errors.phone?.message}
         />
