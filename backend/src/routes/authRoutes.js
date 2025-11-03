@@ -390,25 +390,22 @@ router.post('/forgot-password', forgotPasswordValidation, validate, authControll
  */
 router.post('/reset-password', resetPasswordValidation, validate, authController.resetPassword);
 
-// ============================================
-// Routes Google OAuth
-// ============================================
-
 /**
  * @swagger
  * /api/auth/google:
  *   get:
- *     summary: Authentification Google OAuth (Login)
+ *     summary: Initier l'authentification Google OAuth (connexion)
  *     tags: [Auth]
- *     description: Redirige vers la page d'authentification Google pour connexion
+ *     description: Redirige vers Google pour l'authentification d'utilisateurs existants
  *     responses:
  *       302:
  *         description: Redirection vers Google OAuth
  */
-router.get('/google',
-  passport.authenticate('google-login', { 
+router.get(
+  '/google',
+  passport.authenticate('google-login', {
     scope: ['profile', 'email'],
-    session: false 
+    state: 'login'
   })
 );
 
@@ -416,17 +413,18 @@ router.get('/google',
  * @swagger
  * /api/auth/google/signup:
  *   get:
- *     summary: Authentification Google OAuth (Inscription)
+ *     summary: Initier l'authentification Google OAuth (inscription)
  *     tags: [Auth]
- *     description: Redirige vers la page d'authentification Google pour inscription
+ *     description: Redirige vers Google pour l'inscription de nouveaux utilisateurs
  *     responses:
  *       302:
  *         description: Redirection vers Google OAuth
  */
-router.get('/google/signup',
-  passport.authenticate('google-signup', { 
+router.get(
+  '/google/signup',
+  passport.authenticate('google-signup', {
     scope: ['profile', 'email'],
-    session: false 
+    state: 'signup'
   })
 );
 
@@ -436,19 +434,23 @@ router.get('/google/signup',
  *   get:
  *     summary: Callback Google OAuth
  *     tags: [Auth]
- *     description: Point de retour après authentification Google
+ *     description: Gère le retour de Google après authentification
  *     parameters:
  *       - in: query
  *         name: code
+ *         required: true
  *         schema:
  *           type: string
  *         description: Code d'autorisation Google
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: État (login ou signup)
  *     responses:
  *       302:
- *         description: Redirection vers le frontend avec le token
+ *         description: Redirection vers le frontend avec token
  */
-router.get('/google/callback',
-  authController.googleCallback
-);
+router.get('/google/callback', authController.googleCallback);
 
 module.exports = router;

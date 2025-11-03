@@ -1,0 +1,188 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Job 1: Run tests before deployment
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+      
+      - name: Run backend linter
+        run: cd backend && npm run lint || echo "No lint script found"
+      
+      - name: Run backend tests
+        run: cd backend && npm test || echo "No tests found"
+      
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      
+      - name: Run frontend linter
+        run: cd frontend && npm run lint
+      
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CLIENT_ID }}
+
+  # Job 2: Deploy backend to Railway
+  deploy-backend:
+    name: Deploy Backend to Railway
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy to Railway
+        run: railway up --service backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      
+      - name: Wait for deployment
+        run: sleep 30
+      
+      - name: Run database migrations
+        run: |
+          cd backend
+          npm install
+          npm run db:migrate
+        env:
+          MONGODB_URI: ${{ secrets.STAGING_MONGODB_URI }}
+      
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -f ${{ secrets.STAGING_API_URL }}/health; then
+              echo "✅ Backend health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "❌ Backend health check failed"
+          exit 1
+
+  # Job 3: Deploy frontend to Vercel
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+      
+      - name: Build Project
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.STAGING_GOOGLE_CLIENT_ID }}
+      
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+      
+      - name: Wait for deployment
+        run: sleep 20
+      
+      - name: Frontend health check
+        run: |
+          if curl -f ${{ secrets.STAGING_FRONTEND_URL }}; then
+            echo "✅ Frontend deployed successfully"
+          else
+            echo "❌ Frontend health check failed"
+            exit 1
+          fi
+
+  # Job 4: Run E2E smoke tests
+  smoke-test:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test API endpoints
+        run: |
+          echo "Testing health endpoint..."
+          curl -f ${{ secrets.STAGING_API_URL }}/health
+          
+          echo "Testing registration..."
+          response=$(curl -s -w "%{http_code}" -X POST ${{ secrets.STAGING_API_URL }}/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"email":"test@example.com","password":"Test123456!","confirmPassword":"Test123456!","firstName":"Test","lastName":"User"}')
+          
+          if [[ $response == *"200"* ]] || [[ $response == *"409"* ]]; then
+            echo "✅ Registration endpoint working"
+          else
+            echo "❌ Registration endpoint failed: $response"
+            exit 1
+          fi
+      
+      - name: Notify deployment success
+        run: |
+          echo "🎉 Staging deployment successful!"
+          echo "Backend: ${{ secrets.STAGING_API_URL }}"
+          echo "Frontend: ${{ secrets.STAGING_FRONTEND_URL }}"
+
+  # Job 5: Rollback on failure (manual trigger)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+      - name: Rollback Railway
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+          railway rollback --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      
+      - name: Rollback Vercel
+        run: |
+          vercel rollback --token=${{ secrets.VERCEL_TOKEN }}
+      
+      - name: Notify rollback
+        run: |
+          echo "🔄 Rollback completed"

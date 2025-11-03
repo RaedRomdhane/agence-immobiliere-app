@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RegisterForm from '@/components/forms/RegisterForm';
 import Header from '@/components/layout/Header';
@@ -226,7 +226,7 @@ function RegisterContent() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center"><div className="text-lg">Chargement...</div></div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <RegisterContent />
     </Suspense>
   );

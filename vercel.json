@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "outputDirectory": ".next"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "name": "agence-immobiliere-frontend",
+  "framework": "nextjs"
 }
