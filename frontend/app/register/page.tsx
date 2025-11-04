@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RegisterForm from '@/components/forms/RegisterForm';
 import Header from '@/components/layout/Header';
 import { Building2, Shield, Users, TrendingUp, Award, Headphones, X } from 'lucide-react';
 
-export default function RegisterPage() {
+function RegisterContent() {
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -221,5 +221,13 @@ export default function RegisterPage() {
       </div>
     </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegisterContent />
+    </Suspense>
   );
 }

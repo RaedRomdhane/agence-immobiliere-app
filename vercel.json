@@ -2,20 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "name": "agence-immobiliere-frontend",
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "devCommand": "cd frontend && npm run dev",
-  "installCommand": "cd frontend && npm install",
-  "framework": "nextjs",
-  "outputDirectory": "frontend/.next",
-  "regions": ["cdg1"],
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@agence-api-url",
-    "NEXT_PUBLIC_APP_NAME": "Agence Immobilière (Staging)",
-    "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "@google-client-id"
-  },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_API_URL": "@agence-api-url"
-    }
-  }
+  "framework": "nextjs"
 }

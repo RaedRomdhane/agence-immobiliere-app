@@ -5,7 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green)](https://www.mongodb.com/)
 
-## 📋 Description
+## 📋 Description 
 
 Plateforme web moderne et intelligente pour la gestion et la promotion de biens immobiliers. Le site offre des fonctionnalités avancées telles que la recherche intelligente, la géolocalisation, la génération de QR Codes, et un chatbot IA.
 
@@ -376,6 +376,8 @@ npm run test:e2e
 - [📋 Stratégie de branchement (GitHub Flow)](docs/BRANCHING_STRATEGY.md)
 - [📡 Documentation API](docs/API.md)
 - [🚀 Guide de déploiement](docs/DEPLOYMENT.md)
+- [🎯 Déploiement Automatique Staging](docs/STAGING_DEPLOYMENT.md) - **NEW! AW-21**
+- [⚙️ Configuration Azure pour Staging](docs/AZURE_SETUP.md) - Guide de setup Azure
 - [📝 Cahier des charges complet](docs/SPECIFICATIONS.md)
 
 ---
