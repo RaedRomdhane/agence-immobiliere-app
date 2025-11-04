@@ -40,7 +40,11 @@ export class RegisterPage {
     if (data.firstName) await this.firstNameInput.fill(data.firstName);
     if (data.lastName) await this.lastNameInput.fill(data.lastName);
     if (data.phone) await this.phoneInput.fill(data.phone);
-    await this.roleSelect.selectOption(data.role || 'client');
+    
+    const roleSelectExists = await this.roleSelect.count() > 0;
+    if (roleSelectExists && data.role) {
+      await this.roleSelect.selectOption(data.role);
+    }
   }
 
   async submit() {
