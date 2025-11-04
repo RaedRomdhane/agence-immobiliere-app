@@ -14,8 +14,8 @@ export class LoginPage {
     this.emailInput = page.locator('input[name="email"], input[type="email"]');
     this.passwordInput = page.locator('input[name="password"][type="password"]');
     this.submitButton = page.locator('button[type="submit"]');
-    this.googleLoginButton = page.getByRole('button', { name: /google/i });
-    this.registerLink = page.locator('a[href="/register"]');
+    this.googleLoginButton = page.locator('button:has-text("Google")');
+    this.registerLink = page.locator('form a[href="/register"]');
     this.errorMessage = page.locator('[role="alert"], .error, .text-red-500');
   }
 

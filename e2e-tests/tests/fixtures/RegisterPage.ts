@@ -24,8 +24,8 @@ export class RegisterPage {
     this.phoneInput = page.locator('input[name="phone"], input[type="tel"]');
     this.roleSelect = page.locator('select[name="role"]');
     this.submitButton = page.locator('button[type="submit"]');
-    this.googleSignupButton = page.getByRole('button', { name: /google/i });
-    this.loginLink = page.locator('a[href="/login"]');
+    this.googleSignupButton = page.locator('button:has-text("Google")');
+    this.loginLink = page.locator('form a[href="/login"]');
     this.errorMessage = page.locator('[role="alert"], .error, .text-red-500');
   }
 
@@ -40,6 +40,7 @@ export class RegisterPage {
     if (data.firstName) await this.firstNameInput.fill(data.firstName);
     if (data.lastName) await this.lastNameInput.fill(data.lastName);
     if (data.phone) await this.phoneInput.fill(data.phone);
+    await this.roleSelect.selectOption(data.role || 'client');
   }
 
   async submit() {

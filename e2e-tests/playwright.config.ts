@@ -13,7 +13,7 @@ export default defineConfig({
     ['list']
   ],
   use: {
-    baseURL: process.env.STAGING_URL || 'https://agence-immobiliere-app-4naj-git-feature-aw-21-raed-raedromdhanes-projects.vercel.app',
+    baseURL: process.env.STAGING_URL || 'https://agence-immobiliere-app.vercel.app',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
