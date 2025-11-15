@@ -106,12 +106,21 @@ export default function PropertiesPage() {
                 className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Image */}
-                <div className="relative h-48 bg-gray-200">
+                <div className="relative h-48 bg-white">
                   {property.photos?.[0] ? (
                     <img
                       src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`}
                       alt={property.title}
                       className="w-full h-full object-cover"
+                      style={{ display: 'block', backgroundColor: 'white' }}
+                      onLoad={() => {
+                        console.log('✅ Image chargée:', property.photos[0].url);
+                      }}
+                      onError={(e) => {
+                        const url = `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`;
+                        console.error('❌ Erreur chargement image:', url);
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
