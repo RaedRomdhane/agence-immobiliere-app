@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const featureFlagRoutes = require('./routes/featureFlagRoutes');
+const propertyRoutes = require('./routes/propertyRoutes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 const logger = require('./config/logger');
 const { metricsMiddleware, register } = require('../metrics');
@@ -96,6 +97,9 @@ app.get('/metrics', async (req, res) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir les fichiers statiques (uploads)
+app.use('/uploads', express.static('uploads'));
+
 // Documentation Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
@@ -135,6 +139,7 @@ app.get('/', (req, res) => {
 // Routes spécifiques en premier
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/properties', propertyRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
 // Admin routes protected by feature flag (can be toggled on/off)
 app.use('/api/admin', requireFeatureFlag('admin-panel'), adminRoutes);
