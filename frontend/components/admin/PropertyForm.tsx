@@ -495,7 +495,13 @@ export default function PropertyForm() {
 
           <PhotoUploader
             photos={photos}
-            onPhotosChange={setPhotos}
+            onPhotosChange={(newPhotos) => {
+              setPhotos(newPhotos);
+              // Clear l'erreur quand l'utilisateur change les photos
+              if (photoError && newPhotos.length > 0) {
+                setPhotoError('');
+              }
+            }}
             maxPhotos={10}
             error={photoError}
           />

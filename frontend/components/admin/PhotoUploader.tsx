@@ -175,10 +175,12 @@ export default function PhotoUploader({
 
       {/* Message d'erreur */}
       {error && (
-        <p className="text-sm text-red-600 flex items-center gap-2">
-          <span className="inline-block w-2 h-2 bg-red-600 rounded-full" />
-          {error}
-        </p>
+        <div className="p-4 bg-red-50 border border-red-300 rounded-lg">
+          <p className="text-sm text-red-700 font-medium flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-red-600 rounded-full" />
+            {error}
+          </p>
+        </div>
       )}
 
       {/* Prévisualisation des photos */}
