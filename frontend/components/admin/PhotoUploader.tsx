@@ -90,7 +90,22 @@ export default function PhotoUploader({
       return;
     }
 
-    const filesToAdd = imageFiles.slice(0, remainingSlots);
+    // Vérifier les doublons avec les photos existantes
+    const existingSignatures = photos.map(p => `${p.name}-${p.size}`);
+    const newFilesWithoutDuplicates = imageFiles.filter(file => {
+      const signature = `${file.name}-${file.size}`;
+      return !existingSignatures.includes(signature);
+    });
+
+    if (newFilesWithoutDuplicates.length < imageFiles.length) {
+      alert('Certaines photos ont été ignorées car elles sont déjà ajoutées');
+    }
+
+    if (newFilesWithoutDuplicates.length === 0) {
+      return;
+    }
+
+    const filesToAdd = newFilesWithoutDuplicates.slice(0, remainingSlots);
     onPhotosChange([...photos, ...filesToAdd]);
   };
 

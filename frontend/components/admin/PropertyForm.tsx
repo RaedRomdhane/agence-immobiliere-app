@@ -141,6 +141,15 @@ export default function PropertyForm() {
         return;
       }
 
+      // Vérifier les doublons (même nom et taille de fichier)
+      const photoSignatures = photos.map(photo => `${photo.name}-${photo.size}`);
+      const uniqueSignatures = new Set(photoSignatures);
+      if (photoSignatures.length !== uniqueSignatures.size) {
+        setPhotoError('Vous avez ajouté la même photo plusieurs fois');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Préparation des données
       const propertyData: PropertyFormData = {
         ...data,
