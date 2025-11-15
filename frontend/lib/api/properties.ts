@@ -6,7 +6,7 @@ export interface Property {
   _id: string;
   title: string;
   description: string;
-  type: 'appartement' | 'villa' | 'terrain' | 'local-commercial' | 'bureau';
+  type: string;
   transactionType: 'vente' | 'location';
   price: number;
   surface: number;

@@ -10,6 +10,36 @@ import { createProperty, PropertyFormData } from '@/lib/api/properties';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 // Schéma de validation Zod
+// Liste canonique des types de biens (value => label)
+const PROPERTY_TYPES: { value: string; label: string }[] = [
+  { value: 'appartement', label: 'Appartement' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'villa', label: 'Villa' },
+  { value: 'maison', label: 'Maison' },
+  { value: 'duplex', label: 'Duplex' },
+  { value: 'triplex', label: 'Triplex' },
+  { value: 'riad', label: 'Riad' },
+  { value: 'immeuble_residentiel', label: 'Immeuble résidentiel' },
+  { value: 'local_commercial', label: 'Local commercial' },
+  { value: 'magasin', label: 'Magasin' },
+  { value: 'bureau', label: 'Bureau' },
+  { value: 'espace_coworking', label: 'Espace coworking' },
+  { value: 'showroom', label: 'Showroom' },
+  { value: 'entrepot', label: 'Entrepôt / Hangar' },
+  { value: 'usine', label: 'Usine' },
+  { value: 'terrain', label: 'Terrain' },
+  { value: 'terrain_agricole', label: 'Terrain agricole' },
+  { value: 'terrain_nu', label: 'Terrain nu' },
+  { value: 'ferme', label: 'Ferme' },
+  { value: 'parking', label: 'Parking / Garage' },
+  { value: 'cave', label: 'Cave' },
+  { value: 'hotel', label: "Hôtel / Maison d'hôtes" },
+  { value: 'fonds_commerce', label: 'Fonds de commerce' },
+  { value: 'clinique', label: 'Clinique / Cabinet médical' },
+  { value: 'ecole', label: 'École / Crèche' },
+  { value: 'salle_fete', label: 'Salle de fête' },
+];
+
 const propertySchema = z.object({
   title: z
     .string()
@@ -19,7 +49,8 @@ const propertySchema = z.object({
     .string()
     .min(20, 'La description doit contenir au moins 20 caractères')
     .max(2000, 'La description ne peut pas dépasser 2000 caractères'),
-  type: z.enum(['appartement', 'villa', 'terrain', 'local-commercial', 'bureau']),
+  // Type: string validated against PROPERTY_TYPES below
+  type: z.string().nonempty('Veuillez sélectionner un type de bien').refine((val) => PROPERTY_TYPES.some(t => t.value === val), { message: 'Type de bien invalide' }),
   transactionType: z.enum(['vente', 'location']),
   price: z.number().min(0, 'Le prix ne peut pas être négatif'),
   surface: z.number().min(1, 'La surface doit être au moins 1 m²'),
@@ -197,11 +228,11 @@ export default function PropertyForm() {
                 }`}
               >
                 <option value="">Sélectionnez un type</option>
-                <option value="appartement">Appartement</option>
-                <option value="villa">Villa</option>
-                <option value="terrain">Terrain</option>
-                <option value="local-commercial">Local commercial</option>
-                <option value="bureau">Bureau</option>
+                {PROPERTY_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
               {errors.type && (
                 <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>
