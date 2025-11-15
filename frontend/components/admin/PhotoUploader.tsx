@@ -172,7 +172,11 @@ export default function PhotoUploader({
           {previewUrls.map((url, index) => (
             <div
               key={index}
-              className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-white"
+              className="relative group rounded-lg overflow-hidden border-2 border-gray-300"
+              style={{
+                aspectRatio: '1/1',
+                backgroundColor: '#ffffff'
+              }}
             >
               {/* Image */}
               <img
@@ -183,8 +187,8 @@ export default function PhotoUploader({
                   height: '100%',
                   objectFit: 'cover',
                   display: 'block',
-                  backgroundColor: 'white',
-                  imageRendering: 'auto'
+                  position: 'relative',
+                  zIndex: 1
                 }}
                 onLoad={(e) => {
                   console.log(`✅ Image ${index + 1} affichée avec succès`);
@@ -200,7 +204,10 @@ export default function PhotoUploader({
 
               {/* Badge "Principale" pour la première photo */}
               {index === 0 && (
-                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium z-10">
+                <div 
+                  className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium"
+                  style={{ zIndex: 10 }}
+                >
                   Principale
                 </div>
               )}
@@ -211,16 +218,14 @@ export default function PhotoUploader({
                 onClick={() => removePhoto(index)}
                 className="
                   absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full
-                  opacity-0 group-hover:opacity-100 transition-opacity z-10
+                  opacity-0 group-hover:opacity-100 transition-opacity
                   hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500
                 "
+                style={{ zIndex: 10 }}
                 aria-label={`Supprimer la photo ${index + 1}`}
               >
                 <X className="w-4 h-4" />
               </button>
-
-              {/* Overlay au survol */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all pointer-events-none" />
             </div>
           ))}
 
