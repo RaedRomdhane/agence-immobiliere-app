@@ -97,6 +97,7 @@ export default function PropertyForm() {
   const [photoError, setPhotoError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const photosSectionRef = React.useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -132,12 +133,15 @@ export default function PropertyForm() {
       if (photos.length === 0) {
         setPhotoError('Au moins une photo est requise');
         setIsSubmitting(false);
+        // Scroll vers la section photos
+        photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
 
       if (photos.length > 10) {
         setPhotoError('Maximum 10 photos autorisées');
         setIsSubmitting(false);
+        photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
 
@@ -147,6 +151,7 @@ export default function PropertyForm() {
       if (photoSignatures.length !== uniqueSignatures.size) {
         setPhotoError('Vous avez ajouté la même photo plusieurs fois');
         setIsSubmitting(false);
+        photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
 
@@ -488,7 +493,7 @@ export default function PropertyForm() {
         </div>
 
         {/* Photos */}
-        <div className="space-y-6 mt-8">
+        <div ref={photosSectionRef} className="space-y-6 mt-8">
           <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
             Photos *
           </h3>
