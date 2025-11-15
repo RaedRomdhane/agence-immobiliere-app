@@ -154,7 +154,7 @@ export default function PropertyForm() {
               type="text"
               id="title"
               {...register('title')}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.title ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Ex: Bel appartement F3 avec vue mer"
@@ -173,7 +173,7 @@ export default function PropertyForm() {
               id="description"
               rows={5}
               {...register('description')}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.description ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Décrivez le bien en détail..."
@@ -192,7 +192,7 @@ export default function PropertyForm() {
               <select
                 id="type"
                 {...register('type')}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.type ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -215,7 +215,7 @@ export default function PropertyForm() {
               <select
                 id="transactionType"
                 {...register('transactionType')}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.transactionType ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -239,7 +239,7 @@ export default function PropertyForm() {
                 type="number"
                 id="price"
                 {...register('price', { valueAsNumber: true })}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.price ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="150000"
@@ -257,7 +257,7 @@ export default function PropertyForm() {
                 type="number"
                 id="surface"
                 {...register('surface', { valueAsNumber: true })}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.surface ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="85"
@@ -278,7 +278,7 @@ export default function PropertyForm() {
                 type="number"
                 id="rooms"
                 {...register('rooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -291,7 +291,7 @@ export default function PropertyForm() {
                 type="number"
                 id="bedrooms"
                 {...register('bedrooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -304,7 +304,7 @@ export default function PropertyForm() {
                 type="number"
                 id="bathrooms"
                 {...register('bathrooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -317,7 +317,7 @@ export default function PropertyForm() {
                 type="number"
                 id="floor"
                 {...register('floor', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -338,7 +338,7 @@ export default function PropertyForm() {
               type="text"
               id="location.address"
               {...register('location.address')}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.location?.address ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="12 Avenue Habib Bourguiba"
@@ -357,7 +357,7 @@ export default function PropertyForm() {
                 type="text"
                 id="location.city"
                 {...register('location.city')}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.location?.city ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Tunis"
@@ -375,7 +375,7 @@ export default function PropertyForm() {
                 type="text"
                 id="location.region"
                 {...register('location.region')}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.location?.region ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Tunis"
@@ -393,7 +393,7 @@ export default function PropertyForm() {
                 type="text"
                 id="location.zipCode"
                 {...register('location.zipCode')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="1000"
               />
             </div>

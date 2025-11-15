@@ -20,15 +20,34 @@ export default function PhotoUploader({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Générer les URLs de prévisualisation
+  // Générer les URLs de prévisualisation avec base64
   React.useEffect(() => {
-    const urls = photos.map((photo) => URL.createObjectURL(photo));
-    setPreviewUrls(urls);
-
-    // Nettoyer les URLs quand le composant se démonte
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
+    const loadPreviews = async () => {
+      const urls: string[] = [];
+      
+      for (const photo of photos) {
+        try {
+          // Lire le fichier en base64
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = (e) => {
+              const result = e.target?.result as string;
+              console.log('✅ Base64 créé pour:', photo.name);
+              resolve(result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(photo);
+          });
+          urls.push(base64);
+        } catch (error) {
+          console.error('❌ Erreur lecture:', photo.name, error);
+        }
+      }
+      
+      setPreviewUrls(urls);
     };
+
+    loadPreviews();
   }, [photos]);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -121,7 +140,8 @@ export default function PhotoUploader({
               <button
                 type="button"
                 onClick={openFileDialog}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+                aria-label="Parcourir les fichiers"
               >
                 parcourez vos fichiers
               </button>
@@ -152,17 +172,35 @@ export default function PhotoUploader({
           {previewUrls.map((url, index) => (
             <div
               key={index}
-              className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200"
+              className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-white"
             >
+              {/* Image */}
               <img
                 src={url}
                 alt={`Photo ${index + 1}`}
-                className="w-full h-full object-cover"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  backgroundColor: 'white',
+                  imageRendering: 'auto'
+                }}
+                onLoad={(e) => {
+                  console.log(`✅ Image ${index + 1} affichée avec succès`);
+                  const img = e.currentTarget;
+                  console.log(`Dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+                  console.log(`Source URL: ${url.substring(0, 50)}...`);
+                }}
+                onError={(e) => {
+                  console.error(`❌ Erreur chargement image ${index + 1}`);
+                  console.error(`Source URL problématique: ${url.substring(0, 100)}`);
+                }}
               />
 
               {/* Badge "Principale" pour la première photo */}
               {index === 0 && (
-                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium z-10">
                   Principale
                 </div>
               )}
@@ -173,7 +211,7 @@ export default function PhotoUploader({
                 onClick={() => removePhoto(index)}
                 className="
                   absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full
-                  opacity-0 group-hover:opacity-100 transition-opacity
+                  opacity-0 group-hover:opacity-100 transition-opacity z-10
                   hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500
                 "
                 aria-label={`Supprimer la photo ${index + 1}`}
@@ -182,7 +220,7 @@ export default function PhotoUploader({
               </button>
 
               {/* Overlay au survol */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all pointer-events-none" />
             </div>
           ))}
 
@@ -195,8 +233,9 @@ export default function PhotoUploader({
                 aspect-square rounded-lg border-2 border-dashed border-gray-300
                 hover:border-blue-500 hover:bg-blue-50 transition-colors
                 flex flex-col items-center justify-center space-y-2
-                text-gray-600 hover:text-blue-600
+                text-gray-600 hover:text-blue-600 cursor-pointer
               "
+              aria-label="Ajouter des photos"
             >
               <ImageIcon className="w-8 h-8" />
               <span className="text-sm font-medium">Ajouter</span>
