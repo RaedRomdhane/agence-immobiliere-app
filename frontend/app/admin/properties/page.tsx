@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getProperties, Property } from '@/lib/api/properties';
 import { Plus, Building2, MapPin, Euro } from 'lucide-react';
 import Link from 'next/link';
+import PhotoModal from '@/components/admin/PhotoModal';
 
 export default function PropertiesPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -13,6 +14,8 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Vérification de l'authentification
   useEffect(() => {
@@ -39,6 +42,37 @@ export default function PropertiesPage() {
       fetchProperties();
     }
   }, [user]);
+
+  // Fonctions pour le modal
+  const openPhotoModal = (property: Property, photoIndex: number = 0) => {
+    setSelectedProperty(property);
+    setCurrentPhotoIndex(photoIndex);
+  };
+
+  const closePhotoModal = () => {
+    setSelectedProperty(null);
+    setCurrentPhotoIndex(0);
+  };
+
+  const goToPhoto = (index: number) => {
+    setCurrentPhotoIndex(index);
+  };
+
+  const nextPhoto = () => {
+    if (selectedProperty && selectedProperty.photos) {
+      setCurrentPhotoIndex((prev) =>
+        prev === selectedProperty.photos.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  const previousPhoto = () => {
+    if (selectedProperty && selectedProperty.photos) {
+      setCurrentPhotoIndex((prev) =>
+        prev === 0 ? selectedProperty.photos.length - 1 : prev - 1
+      );
+    }
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -106,22 +140,32 @@ export default function PropertiesPage() {
                 className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Image */}
-                <div className="relative h-48 bg-white">
+                <div 
+                  className="relative h-48 bg-gray-200 cursor-pointer overflow-hidden group"
+                  onClick={() => openPhotoModal(property, 0)}
+                >
                   {property.photos?.[0] ? (
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`}
-                      alt={property.title}
-                      className="w-full h-full object-cover"
-                      style={{ display: 'block', backgroundColor: 'white' }}
-                      onLoad={() => {
-                        console.log('✅ Image chargée:', property.photos[0].url);
-                      }}
-                      onError={(e) => {
-                        const url = `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`;
-                        console.error('❌ Erreur chargement image:', url);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
+                    <>
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`}
+                        alt={property.title}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        onLoad={() => {
+                          console.log('✅ Image chargée:', property.photos[0].url);
+                        }}
+                        onError={(e) => {
+                          const url = `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${property.photos[0].url}`;
+                          console.error('❌ Erreur chargement image:', url);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                      {/* Badge nombre de photos */}
+                      {property.photos.length > 1 && (
+                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                          📸 {property.photos.length}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Building2 className="w-16 h-16 text-gray-400" />
@@ -188,6 +232,19 @@ export default function PropertiesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal pour voir les photos en grand */}
+      {selectedProperty && selectedProperty.photos && selectedProperty.photos.length > 0 && (
+        <PhotoModal
+          photos={selectedProperty.photos}
+          currentIndex={currentPhotoIndex}
+          onClose={closePhotoModal}
+          onNext={nextPhoto}
+          onPrevious={previousPhoto}
+          onGoToPhoto={goToPhoto}
+          propertyTitle={selectedProperty.title}
+        />
+      )}
     </div>
   );
 }

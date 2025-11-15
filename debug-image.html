@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Image Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .preview-box {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            aspect-ratio: 1/1;
+            position: relative;
+        }
+        .preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .upload-btn {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover {
+            background: #2563eb;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Image Upload</h1>
+    <p>Ce test permet de vérifier si le problème vient du navigateur ou de Next.js</p>
+    
+    <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 Choisir des images
+    </button>
+    
+    <div class="info" id="info">
+        Aucune image sélectionnée
+    </div>
+    
+    <div class="preview-container" id="previewContainer"></div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const info = document.getElementById('info');
+
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            console.log('📁 Fichiers sélectionnés:', files.length);
+            
+            info.innerHTML = `<strong>${files.length} fichier(s) sélectionné(s)</strong><br><br>`;
+            previewContainer.innerHTML = '';
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                console.log(`\n🖼️ Traitement de: ${file.name}`);
+                console.log(`   Type: ${file.type}`);
+                console.log(`   Taille: ${(file.size / 1024).toFixed(2)} KB`);
+
+                try {
+                    // Méthode 1: FileReader (base64)
+                    const reader = new FileReader();
+                    
+                    reader.onload = (event) => {
+                        const base64 = event.target.result;
+                        const preview = base64.substring(0, 100);
+                        
+                        console.log(`✅ Base64 créé pour: ${file.name}`);
+                        console.log(`   Préview: ${preview}...`);
+                        console.log(`   Longueur totale: ${base64.length} caractères`);
+                        
+                        // Afficher dans l'info
+                        info.innerHTML += `
+                            <strong>Fichier ${i + 1}: ${file.name}</strong><br>
+                            Type: ${file.type}<br>
+                            Taille: ${(file.size / 1024).toFixed(2)} KB<br>
+                            Base64 longueur: ${base64.length} car<br>
+                            Début: ${preview}...<br><br>
+                        `;
+
+                        // Créer la prévisualisation
+                        const box = document.createElement('div');
+                        box.className = 'preview-box';
+                        
+                        const img = document.createElement('img');
+                        img.src = base64;
+                        img.alt = file.name;
+                        
+                        img.onload = () => {
+                            console.log(`✅ Image ${i + 1} AFFICHÉE avec succès`);
+                            console.log(`   Dimensions: ${img.naturalWidth} x ${img.naturalHeight}`);
+                        };
+                        
+                        img.onerror = (err) => {
+                            console.error(`❌ ERREUR affichage image ${i + 1}`, err);
+                            box.style.background = 'red';
+                            box.innerHTML = '<div style="color: white; padding: 10px;">ERREUR</div>';
+                        };
+                        
+                        box.appendChild(img);
+                        previewContainer.appendChild(box);
+                    };
+                    
+                    reader.onerror = (error) => {
+                        console.error(`❌ Erreur FileReader pour: ${file.name}`, error);
+                    };
+                    
+                    reader.readAsDataURL(file);
+
+                } catch (error) {
+                    console.error(`❌ Exception pour: ${file.name}`, error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
