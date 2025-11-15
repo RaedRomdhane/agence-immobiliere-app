@@ -1,0 +1,244 @@
+@startuml Agence-Immobiliere-Structure-Simplifiee
+
+' ================================================
+' DIAGRAMME DE STRUCTURE DE BASE
+' ================================================
+' Système de Gestion d'Agence Immobilière
+' Vue Simplifiée - Domaine Métier
+' Date: Novembre 2025
+' ================================================
+
+title Diagramme de Structure de Base - Agence Immobilière
+
+' Configuration visuelle simple
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+' ================================================
+' MODÈLES MÉTIER
+' ================================================
+
+package "Modèles" {
+    
+    class Utilisateur {
+        - id: String
+        - prenom: String
+        - nom: String
+        - email: String
+        - telephone: String
+        - role: String
+        - motDePasse: String
+        __Méthodes__
+        + creerCompte(): Boolean
+        + seConnecter(): Boolean
+        + modifierProfil(): Boolean
+        + supprimerCompte(): void
+    }
+    
+    class BienImmobilier {
+        - id: String
+        - titre: String
+        - type: String
+        - prix: double
+        - surface: int
+        - adresse: String
+        - ville: String
+        - description: String
+        - statut: String
+        __Méthodes__
+        + publier(): Boolean
+        + modifier(): Boolean
+        + archiver(): void
+        + calculerCommission(): double
+    }
+    
+    class Reservation {
+        - id: String
+        - dateDebut: Date
+        - dateFin: Date
+        - statut: String
+        - montantTotal: double
+        __Méthodes__
+        + creer(): Boolean
+        + confirmer(): Boolean
+        + annuler(): void
+        + calculerDuree(): int
+    }
+    
+    class Visite {
+        - id: String
+        - dateVisite: Date
+        - heureDebut: String
+        - heureFin: String
+        - statut: String
+        __Méthodes__
+        + planifier(): Boolean
+        + confirmer(): Boolean
+        + annuler(): void
+    }
+    
+    class Paiement {
+        - id: String
+        - montant: double
+        - datePaiement: Date
+        - methodePaiement: String
+        - statut: String
+        __Méthodes__
+        + traiter(): Boolean
+        + rembourser(): Boolean
+        + verifier(): Boolean
+    }
+}
+
+' ================================================
+' SERVICES MÉTIER
+' ================================================
+
+package "Services" {
+    
+    class ServiceUtilisateur {
+        __Gestion utilisateurs__
+        + inscrire(donnees: Object): Utilisateur
+        + authentifier(email: String, mdp: String): Boolean
+        + modifierProfil(id: String, donnees: Object): Boolean
+        + trouverParEmail(email: String): Utilisateur
+        + supprimerCompte(id: String): void
+    }
+    
+    class ServiceBiens {
+        __Gestion biens__
+        + ajouterBien(donnees: Object): BienImmobilier
+        + modifierBien(id: String, donnees: Object): Boolean
+        + supprimerBien(id: String): void
+        + rechercherBiens(criteres: Object): BienImmobilier[]
+        + filtrerParPrix(min: double, max: double): BienImmobilier[]
+        + filtrerParVille(ville: String): BienImmobilier[]
+    }
+    
+    class ServiceReservations {
+        __Gestion réservations__
+        + creerReservation(donnees: Object): Reservation
+        + confirmerReservation(id: String): Boolean
+        + annulerReservation(id: String): void
+        + verifierDisponibilite(bienId: String, dates: Object): Boolean
+    }
+    
+    class ServiceVisites {
+        __Gestion visites__
+        + planifierVisite(donnees: Object): Visite
+        + confirmerVisite(id: String): Boolean
+        + annulerVisite(id: String): void
+        + obtenirVisitesDisponibles(bienId: String): Visite[]
+    }
+}
+
+' ================================================
+' CONTRÔLEURS API
+' ================================================
+
+package "Contrôleurs" {
+    
+    class ControleurAuth {
+        __Authentification__
+        + POST /inscription()
+        + POST /connexion()
+        + POST /deconnexion()
+        + POST /mot-de-passe-oublie()
+    }
+    
+    class ControleurBiens {
+        __Gestion biens__
+        + GET /biens()
+        + GET /biens/:id()
+        + POST /biens()
+        + PUT /biens/:id()
+        + DELETE /biens/:id()
+    }
+    
+    class ControleurReservations {
+        __Gestion réservations__
+        + GET /reservations()
+        + POST /reservations()
+        + PUT /reservations/:id()
+        + DELETE /reservations/:id()
+    }
+    
+    class ControleurVisites {
+        __Gestion visites__
+        + GET /visites()
+        + POST /visites()
+        + PUT /visites/:id/confirmer()
+        + DELETE /visites/:id()
+    }
+}
+
+' ================================================
+' ASSOCIATIONS ENTRE MODÈLES
+' ================================================
+
+' Relations Utilisateur
+Utilisateur "1" -- "0..*" BienImmobilier : possède >
+Utilisateur "1" -- "0..*" Reservation : effectue >
+Utilisateur "1" -- "0..*" Visite : demande >
+
+' Relations BienImmobilier
+BienImmobilier "1" -- "0..*" Reservation : reçoit >
+BienImmobilier "1" -- "0..*" Visite : concerne >
+
+' Relations Reservation
+Reservation "1" -- "0..*" Paiement : nécessite >
+
+' ================================================
+' ASSOCIATIONS CONTRÔLEURS-SERVICES
+' ================================================
+
+ControleurAuth "1" --> "1" ServiceUtilisateur : utilise
+ControleurBiens "1" --> "1" ServiceBiens : utilise
+ControleurReservations "1" --> "1" ServiceReservations : utilise
+ControleurVisites "1" --> "1" ServiceVisites : utilise
+
+' ================================================
+' ASSOCIATIONS SERVICES-MODÈLES
+' ================================================
+
+ServiceUtilisateur "1" --> "0..*" Utilisateur : gère
+ServiceBiens "1" --> "0..*" BienImmobilier : gère
+ServiceReservations "1" --> "0..*" Reservation : gère
+ServiceVisites "1" --> "0..*" Visite : gère
+
+' ================================================
+' LÉGENDE
+' ================================================
+
+legend right
+    <b>═══════════════════════════════════════</b>
+    <b>    DIAGRAMME DE STRUCTURE DE BASE     </b>
+    <b>═══════════════════════════════════════</b>
+    
+    <b>VISIBILITÉ:</b>
+    • <b>+</b> Public
+    • <b>-</b> Privé
+    
+    <b>CARDINALITÉS:</b>
+    • <b>1</b> : Exactement un
+    • <b>0..*</b> : Zéro ou plusieurs
+    • <b>1..*</b> : Un ou plusieurs
+    
+    <b>ARCHITECTURE:</b>
+    1. <b>Modèles</b> : Entités métier
+    2. <b>Services</b> : Logique métier
+    3. <b>Contrôleurs</b> : API REST
+    
+    <b>ENTITÉS PRINCIPALES:</b>
+    • Utilisateur (client/admin)
+    • BienImmobilier (propriété)
+    • Reservation (location)
+    • Visite (rendez-vous)
+    • Paiement (transaction)
+end legend
+
+@enduml

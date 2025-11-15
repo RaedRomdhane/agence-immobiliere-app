@@ -1,0 +1,505 @@
+@startuml Agence-Immobiliere-Structure-Base
+
+' ================================================
+' DIAGRAMME DE STRUCTURE DE BASE
+' ================================================
+' Système de Gestion d'Agence Immobilière
+' Architecture Backend - Node.js + MongoDB
+' Date: Novembre 2025
+' ================================================
+
+' Configuration visuelle
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+    FontName Arial
+    FontSize 11
+}
+
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+' Légende des visibilités
+' + Public
+' - Privé
+' # Protégé
+' ~ Package
+
+' ================================================
+' MODÈLES DE DOMAINE (Entités MongoDB)
+' ================================================
+
+package "Modèles de Domaine" {
+    
+    class Utilisateur {
+        ' Informations de base
+        - _id: ObjectId
+        - prenom: String
+        - nom: String
+        - email: String
+        - motDePasse: String
+        
+        ' Contact
+        - telephone: String
+        - adresse: Adresse
+        
+        ' Rôle et statut
+        - role: Enum
+        - estActif: Boolean
+        - emailVerifie: Boolean
+        
+        ' Sécurité
+        - tokenVerification: String
+        - dateExpirationToken: Date
+        - tokenResetPassword: String
+        - dateExpirationReset: Date
+        
+        ' OAuth
+        - googleId: String
+        - avatar: String
+        
+        ' Métriques
+        - derniereConnexion: Date
+        - tentativesConnexion: Number
+        - verrouilleJusqua: Date
+        - dateCreation: Date
+        - dateMiseAJour: Date
+        
+        __Méthodes__
+        + comparerMotDePasse(mdp: String): Boolean
+        + genererToken(): String
+        + incrementerTentatives(): void
+        + reinitialiserTentatives(): void
+        + estVerrouille(): Boolean
+        + genererTokenReset(): String
+        + genererTokenVerification(): String
+    }
+    
+    class Adresse {
+        - rue: String
+        - ville: String
+        - codePostal: String
+        - pays: String
+        __Méthodes__
+        + formater(): String
+        + valider(): Boolean
+    }
+    
+    class DrapeauFonctionnalite {
+        ' Identification
+        - _id: ObjectId
+        - cle: String
+        - nom: String
+        - description: String
+        
+        ' État
+        - active: Boolean
+        
+        ' Ciblage
+        - utilisateursIds: ObjectId[]
+        - emails: String[]
+        - roles: String[]
+        - pourcentage: Number
+        - environnements: String[]
+        
+        ' Métadonnées
+        - creePar: ObjectId
+        - modifiePar: ObjectId
+        - tags: String[]
+        - categorie: String
+        
+        ' Planification
+        - dateDebut: Date
+        - dateFin: Date
+        - fuseauHoraire: String
+        
+        ' Dépendances
+        - drapeauxRequis: String[]
+        - drapeauxConflictuels: String[]
+        
+        ' Horodatage
+        - dateCreation: Date
+        - dateMiseAJour: Date
+        
+        __Méthodes__
+        + estActivePourUtilisateur(user: Utilisateur): Boolean
+        + estActivePourRole(role: String): Boolean
+        + estActiveDansEnvironnement(env: String): Boolean
+        + planificationActive(): Boolean
+    }
+    
+}
+
+' ================================================
+' CONTRÔLEURS (Couche API)
+' ================================================
+
+package "Contrôleurs" {
+    
+    class ControleurAuthentification {
+        __Points d'accès API__
+        + inscrire(req, res, next): Promise
+        + connecter(req, res, next): Promise
+        + deconnecter(req, res, next): Promise
+        + authGoogle(req, res, next): Promise
+        + callbackGoogle(req, res, next): Promise
+        + rafraichirToken(req, res, next): Promise
+        + obtenirUtilisateurActuel(req, res, next): Promise
+        + verifierEmail(req, res, next): Promise
+        + renvoyerVerification(req, res, next): Promise
+        + motDePasseOublie(req, res, next): Promise
+        + reinitialiserMotDePasse(req, res, next): Promise
+    }
+    
+    class ControleurUtilisateur {
+        __Gestion profil__
+        + obtenirProfil(req, res, next): Promise
+        + mettreAJourProfil(req, res, next): Promise
+        + changerMotDePasse(req, res, next): Promise
+        + supprimerCompte(req, res, next): Promise
+        + telechargerAvatar(req, res, next): Promise
+        __Requêtes utilisateurs__
+        + obtenirUtilisateurs(req, res, next): Promise
+        + obtenirUtilisateurParId(req, res, next): Promise
+    }
+    
+    class ControleurAdministrateur {
+        __Administration utilisateurs__
+        + obtenirTousUtilisateurs(req, res, next): Promise
+        + obtenirUtilisateurParId(req, res, next): Promise
+        + mettreAJourUtilisateur(req, res, next): Promise
+        + supprimerUtilisateur(req, res, next): Promise
+        + mettreAJourRoleUtilisateur(req, res, next): Promise
+        + activerUtilisateur(req, res, next): Promise
+        + desactiverUtilisateur(req, res, next): Promise
+        + obtenirStatistiques(req, res, next): Promise
+        + exporterUtilisateurs(req, res, next): Promise
+    }
+    
+    class ControleurDrapeauFonctionnalite {
+        __Gestion drapeaux__
+        + obtenirTousDrapeaux(req, res, next): Promise
+        + obtenirDrapeauParCle(req, res, next): Promise
+        + creerDrapeau(req, res, next): Promise
+        + mettreAJourDrapeau(req, res, next): Promise
+        + supprimerDrapeau(req, res, next): Promise
+        + basculerDrapeau(req, res, next): Promise
+        + verifierDrapeau(req, res, next): Promise
+        + obtenirDrapeauxUtilisateur(req, res, next): Promise
+    }
+    
+}
+
+' ================================================
+' SERVICES (Logique métier)
+' ================================================
+
+package "Services" {
+    
+    class ServiceAuthentification {
+        __Gestion comptes__
+        + inscrire(donneesUtilisateur: Object): Promise
+        + connecter(email: String, motDePasse: String): Promise
+        + deconnecter(utilisateurId: ObjectId): Promise
+        + authGoogle(profil: Object): Promise
+        + rafraichirToken(token: String): Promise
+        __Vérification email__
+        + verifierEmail(token: String): Promise
+        + renvoyerVerification(email: String): Promise
+        __Mot de passe__
+        + motDePasseOublie(email: String): Promise
+        + reinitialiserMotDePasse(token: String, mdp: String): Promise
+        __Tokens__
+        + genererTokens(user: Utilisateur): Object
+        + verifierToken(token: String): Object
+        __Privé__
+        - hasherMotDePasse(motDePasse: String): Promise
+        - envoyerEmailVerification(user: Utilisateur): Promise
+        - envoyerEmailReset(user: Utilisateur): Promise
+    }
+    
+    class ServiceUtilisateur {
+        __Requêtes utilisateur__
+        + obtenirUtilisateurParId(id: ObjectId): Promise
+        + obtenirUtilisateurParEmail(email: String): Promise
+        + obtenirTousUtilisateurs(filtres: Object, options: Object): Promise
+        + rechercherUtilisateurs(requete: String): Promise
+        __Modifications__
+        + mettreAJourUtilisateur(id: ObjectId, donnees: Object): Promise
+        + supprimerUtilisateur(id: ObjectId): Promise
+        + changerMotDePasse(id: ObjectId, ancienMdp: String, nouveauMdp: String): Promise
+        + telechargerAvatar(id: ObjectId, fichier: File): Promise
+        __Statistiques__
+        + obtenirStatistiquesUtilisateurs(): Promise
+        __Privé__
+        - validerDonneesUtilisateur(donnees: Object): Boolean
+        - nettoyerDonneesUtilisateur(user: Utilisateur): Object
+    }
+    
+    class ServiceDrapeauFonctionnalite {
+        __Gestion drapeaux__
+        + obtenirTousDrapeaux(): Promise
+        + obtenirDrapeauParCle(cle: String): Promise
+        + creerDrapeau(donnees: Object): Promise
+        + mettreAJourDrapeau(cle: String, donnees: Object): Promise
+        + supprimerDrapeau(cle: String): Promise
+        + basculerDrapeau(cle: String, actif: Boolean): Promise
+        __Évaluation__
+        + estActif(cle: String, contexte: Object): Promise
+        + obtenirDrapeauxUtilisateur(id: ObjectId): Promise
+        + evaluerDrapeau(drapeau: DrapeauFonctionnalite, user: Utilisateur): Boolean
+        __Privé__
+        - verifierCiblage(drapeau: DrapeauFonctionnalite, user: Utilisateur): Boolean
+        - verifierPourcentage(drapeau: DrapeauFonctionnalite, id: ObjectId): Boolean
+        - verifierPlanification(drapeau: DrapeauFonctionnalite): Boolean
+        - verifierDependances(drapeau: DrapeauFonctionnalite): Promise
+    }
+    
+    class ServiceEmail {
+        __Envoi emails__
+        + envoyerEmail(destinataire: String, sujet: String, html: String): Promise
+        + envoyerEmailVerification(user: Utilisateur, token: String): Promise
+        + envoyerEmailResetMotDePasse(user: Utilisateur, token: String): Promise
+        + envoyerEmailBienvenue(user: Utilisateur): Promise
+        + envoyerEmailSuppressionCompte(user: Utilisateur): Promise
+        __Privé__
+        - construireTemplateEmail(type: String, donnees: Object): String
+        - validerAdresseEmail(email: String): Boolean
+    }
+    
+}
+
+' ================================================
+' MIDDLEWARE (Intergiciels)
+' ================================================
+
+package "Middleware" {
+    
+    class MiddlewareAuthentification {
+        __Méthodes publiques__
+        + authentifier(req, res, next): Promise
+        + autoriser(...roles: String[]): Function
+        + authOptionnelle(req, res, next): Promise
+        __Méthodes privées__
+        - extraireToken(req: Request): String
+        - verifierToken(token: String): Object
+    }
+    
+    class MiddlewareValidation {
+        __Validation formulaires__
+        + validerInscription(req, res, next): void
+        + validerConnexion(req, res, next): void
+        + validerMiseAJourProfil(req, res, next): void
+        + validerChangementMotDePasse(req, res, next): void
+        + validerCreationDrapeau(req, res, next): void
+        + validerMiseAJourDrapeau(req, res, next): void
+        __Gestion erreurs__
+        - gererErreursValidation(req, res, next): void
+    }
+    
+    class MiddlewareErreur {
+        __Gestion erreurs__
+        + nonTrouve(req, res, next): void
+        + gestionnaireDErreurs(err, req, res, next): void
+        __Privé__
+        - formaterErreur(err: Error): Object
+        - journaliserErreur(err: Error, req: Request): void
+    }
+    
+    class MiddlewareLimiteTaux {
+        __Limiteurs__
+        + limiteTauxConnexion: LimiteurTaux
+        + limiteTauxAPI: LimiteurTaux
+        + limiteTauxCreationCompte: LimiteurTaux
+    }
+    
+    class MiddlewareDrapeauFonctionnalite {
+        __Contrôle drapeaux__
+        + requirerDrapeau(cleDrapeau: String): Function
+        + verifierDrapeau(cleDrapeau: String, defaut: Boolean): Function
+        + injecterDrapeaux(req, res, next): Promise
+    }
+}
+
+' ================================================
+' UTILITAIRES
+' ================================================
+
+package "Utilitaires" {
+    
+    class UtilitaireJWT {
+        __Méthodes statiques__
+        + {static} genererToken(payload: Object, expiration: String): String
+        + {static} verifierToken(token: String): Object
+        + {static} genererTokenRafraichissement(utilisateurId: ObjectId): String
+        + {static} verifierTokenRafraichissement(token: String): Object
+    }
+    
+    class UtilitaireMotDePasse {
+        __Méthodes statiques__
+        + {static} hasher(motDePasse: String): Promise
+        + {static} comparer(motDePasse: String, hash: String): Promise
+        + {static} genererMotDePasseAleatoire(): String
+        + {static} validerForceMotDePasse(motDePasse: String): Boolean
+    }
+    
+    class TemplatesEmail {
+        __Méthodes statiques__
+        + {static} obtenirTemplateVerification(donnees: Object): String
+        + {static} obtenirTemplateResetMotDePasse(donnees: Object): String
+        + {static} obtenirTemplateBienvenue(donnees: Object): String
+        + {static} obtenirTemplateSuppressionCompte(donnees: Object): String
+    }
+    
+    class Validateurs {
+        __Méthodes statiques__
+        + {static} estEmailValide(email: String): Boolean
+        + {static} estTelephoneValide(telephone: String): Boolean
+        + {static} estMotDePasseValide(motDePasse: String): Boolean
+        + {static} nettoyerEntree(entree: String): String
+    }
+}
+
+' ================================================
+' RELATIONS ET ASSOCIATIONS
+' ================================================
+
+' Contrôleurs -> Services
+ControleurAuthentification --> ServiceAuthentification : utilise
+ControleurAuthentification --> ServiceEmail : utilise
+ControleurUtilisateur --> ServiceUtilisateur : utilise
+ControleurAdministrateur --> ServiceUtilisateur : utilise
+ControleurDrapeauFonctionnalite --> ServiceDrapeauFonctionnalite : utilise
+
+' Services -> Modèles
+ServiceAuthentification --> Utilisateur : gère >
+ServiceUtilisateur --> Utilisateur : gère >
+ServiceDrapeauFonctionnalite --> DrapeauFonctionnalite : gère >
+
+' Services -> Services
+ServiceAuthentification --> ServiceEmail : utilise
+ServiceAuthentification --> ServiceUtilisateur : utilise
+
+' Services -> Utilitaires
+ServiceAuthentification --> UtilitaireJWT : utilise
+ServiceAuthentification --> UtilitaireMotDePasse : utilise
+ServiceEmail --> TemplatesEmail : utilise
+ServiceUtilisateur --> Validateurs : utilise
+ServiceDrapeauFonctionnalite --> Validateurs : utilise
+
+' Middleware -> Services
+MiddlewareAuthentification --> ServiceAuthentification : utilise
+MiddlewareDrapeauFonctionnalite --> ServiceDrapeauFonctionnalite : utilise
+
+' Middleware -> Modèles
+MiddlewareAuthentification --> Utilisateur : valide
+MiddlewareValidation --> Utilisateur : valide
+MiddlewareValidation --> DrapeauFonctionnalite : valide
+
+' Relations entre Modèles
+DrapeauFonctionnalite "0..*" --> "0..*" Utilisateur : cible >
+Utilisateur "1" *-- "0..1" Adresse : possède ◆
+
+' ================================================
+' LÉGENDES ET NOTES
+' ================================================
+
+note top of "Modèles de Domaine"
+    <b>Modèles Mongoose</b>
+    • Définitions de schémas
+    • Règles de validation
+    • Méthodes d'instance et statiques
+    • Hooks pre/post sauvegarde
+    • Index de performance
+end note
+
+note top of "Contrôleurs"
+    <b>Couche API REST</b>
+    • Routes HTTP (GET, POST, PUT, DELETE)
+    • Validation des requêtes
+    • Gestion des réponses
+    • Codes statut HTTP
+end note
+
+note top of "Services"
+    <b>Logique métier</b>
+    • Règles métier
+    • Transactions
+    • Validation avancée
+    • Orchestration
+end note
+
+note top of "Middleware"
+    <b>Intergiciels Express</b>
+    • Authentification JWT
+    • Validation des données
+    • Gestion des erreurs
+    • Limitation de taux
+    • Contrôle d'accès
+end note
+
+note top of "Utilitaires"
+    <b>Fonctions utilitaires</b>
+    • Cryptographie
+    • Validation
+    • Templates
+    • Helpers génériques
+end note
+
+' ================================================
+' LÉGENDE ET CONVENTIONS
+' ================================================
+
+legend right
+    <b>═══════════════════════════════════════</b>
+    <b>       DIAGRAMME DE STRUCTURE DE BASE      </b>
+    <b>═══════════════════════════════════════</b>
+    
+    <b>VISIBILITÉ DES MEMBRES:</b>
+    • <b>+</b> Public : Accessible partout
+    • <b>-</b> Privé : Interne à la classe uniquement
+    • <b>#</b> Protégé : Classe et sous-classes
+    • <b>~</b> Package : Même package seulement
+    
+    <b>TYPES D'ASSOCIATIONS:</b>
+    • <b>──></b> Association simple (utilise)
+    • <b>◇──</b> Agrégation (contient, existe indépendamment)
+    • <b>◆──</b> Composition (possède, dépendance forte)
+    
+    <b>CARDINALITÉS:</b>
+    • <b>1</b> : Exactement un élément
+    • <b>*</b> : Zéro ou plusieurs (0..n)
+    • <b>0..1</b> : Zéro ou un (optionnel)
+    • <b>1..*</b> : Au moins un élément
+    • <b>m..n</b> : Entre m et n éléments
+    
+    <b>ARCHITECTURE EN COUCHES:</b>
+    1. <b>Modèles de Domaine</b>
+       └─ Entités de données (Mongoose/MongoDB)
+    2. <b>Contrôleurs</b>
+       └─ Points d'entrée API REST (Express)
+    3. <b>Services</b>
+       └─ Logique métier et orchestration
+    4. <b>Middleware</b>
+       └─ Traitement des requêtes HTTP
+    5. <b>Utilitaires</b>
+       └─ Fonctions helpers réutilisables
+    
+    <b>TECHNOLOGIES:</b>
+    • Node.js + Express.js
+    • MongoDB + Mongoose ODM
+    • JWT + bcrypt (Sécurité)
+    • Nodemailer (Emails)
+    
+    <b>FONCTIONNALITÉS PRINCIPALES:</b>
+    ✓ Authentification JWT
+    ✓ OAuth 2.0 (Google)
+    ✓ Drapeaux de fonctionnalités
+    ✓ Contrôle d'accès basé sur les rôles
+    ✓ Vérification email
+    ✓ Réinitialisation mot de passe
+end legend
+
+@enduml
