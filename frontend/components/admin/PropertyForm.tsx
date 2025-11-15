@@ -105,6 +105,7 @@ export default function PropertyForm() {
     watch,
   } = useForm<PropertyFormValues>({
     resolver: zodResolver(propertySchema),
+    mode: 'onChange', // Validation en temps réel pendant la saisie
     defaultValues: {
       features: {
         parking: false,
@@ -434,9 +435,14 @@ export default function PropertyForm() {
                 type="text"
                 id="location.zipCode"
                 {...register('location.zipCode')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 ${
+                  errors.location?.zipCode ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="1000"
               />
+              {errors.location?.zipCode && (
+                <p className="mt-1 text-sm text-red-600">{errors.location.zipCode.message}</p>
+              )}
             </div>
           </div>
         </div>
