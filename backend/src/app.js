@@ -26,6 +26,8 @@ configurePassport();
 // Middlewares de sécurité
 app.use(helmet({
   contentSecurityPolicy: false, // Désactiver pour Swagger UI
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Autoriser les ressources cross-origin
+  crossOriginEmbedderPolicy: false, // Désactiver pour permettre les images
 }));
 
 // CORS configuration - Allow Vercel preview URLs and production URL
