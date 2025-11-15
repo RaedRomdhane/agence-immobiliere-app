@@ -131,10 +131,14 @@ export default function PropertyForm() {
 
       // Validation des photos
       if (photos.length === 0) {
-        setPhotoError('Au moins une photo est requise');
+        const errorMsg = 'Au moins une photo est requise';
+        console.log('🔴 Erreur photo détectée:', errorMsg);
+        setPhotoError(errorMsg);
         setIsSubmitting(false);
         // Scroll vers la section photos
-        photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+          photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
         return;
       }
 

@@ -20,6 +20,11 @@ export default function PhotoUploader({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Debug: Log error prop
+  React.useEffect(() => {
+    console.log('📸 PhotoUploader - error prop:', error);
+  }, [error]);
+
   // Générer les URLs de prévisualisation avec base64
   React.useEffect(() => {
     const loadPreviews = async () => {
@@ -175,11 +180,18 @@ export default function PhotoUploader({
 
       {/* Message d'erreur */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-300 rounded-lg">
+        <div className="p-4 bg-red-50 border border-red-300 rounded-lg animate-pulse">
           <p className="text-sm text-red-700 font-medium flex items-center gap-2">
             <span className="inline-block w-2 h-2 bg-red-600 rounded-full" />
             {error}
           </p>
+        </div>
+      )}
+
+      {/* Debug: toujours afficher pour tester */}
+      {!error && photos.length === 0 && (
+        <div className="text-xs text-gray-400">
+          Aucune erreur détectée (debug)
         </div>
       )}
 
