@@ -186,7 +186,28 @@ export default function PropertyForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-4xl mx-auto p-6">
+    <form
+      onSubmit={handleSubmit(onSubmit, () => {
+        // onInvalid: show photo error if no photos or duplicates
+        if (photos.length === 0) {
+          setPhotoError('Au moins une photo est requise');
+          setTimeout(() => {
+            photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+          return;
+        }
+        // Check for duplicates
+        const photoSignatures = photos.map(photo => `${photo.name}-${photo.size}`);
+        const uniqueSignatures = new Set(photoSignatures);
+        if (photoSignatures.length !== uniqueSignatures.size) {
+          setPhotoError('Vous avez ajouté la même photo plusieurs fois');
+          setTimeout(() => {
+            photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      })}
+      className="space-y-8 max-w-4xl mx-auto p-6"
+    >
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Ajouter un nouveau bien immobilier
@@ -497,16 +518,18 @@ export default function PropertyForm() {
         </div>
 
         {/* Photos */}
+
         <div ref={photosSectionRef} className="space-y-6 mt-8">
           <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
             Photos *
           </h3>
 
+
           <PhotoUploader
             photos={photos}
-            onPhotosChange={(newPhotos) => {
+            onPhotosChange={(newPhotos: File[]) => {
               setPhotos(newPhotos);
-              // Clear l'erreur quand l'utilisateur change les photos
+              // Clear l'erreur SEULEMENT si l'utilisateur ajoute une photo (pas sur chaque changement)
               if (photoError && newPhotos.length > 0) {
                 setPhotoError('');
               }

@@ -1,4 +1,5 @@
-'use client';
+"use client";
+export default PhotoUploader;
 
 import React, { useState, useRef } from 'react';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
@@ -10,7 +11,7 @@ interface PhotoUploaderProps {
   error?: string;
 }
 
-export default function PhotoUploader({
+function PhotoUploader({
   photos,
   onPhotosChange,
   maxPhotos = 10,
@@ -95,6 +96,7 @@ export default function PhotoUploader({
       return;
     }
 
+
     // Vérifier les doublons avec les photos existantes
     const existingSignatures = photos.map(p => `${p.name}-${p.size}`);
     const newFilesWithoutDuplicates = imageFiles.filter(file => {
@@ -112,6 +114,7 @@ export default function PhotoUploader({
 
     const filesToAdd = newFilesWithoutDuplicates.slice(0, remainingSlots);
     onPhotosChange([...photos, ...filesToAdd]);
+    // No setPhotoError, only alert for duplicates
   };
 
   const removePhoto = (index: number) => {
@@ -178,9 +181,11 @@ export default function PhotoUploader({
         </div>
       </div>
 
+
+
       {/* Message d'erreur */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-300 rounded-lg animate-pulse">
+        <div key={error} className="p-4 bg-red-50 border border-red-300 rounded-lg animate-pulse">
           <p className="text-sm text-red-700 font-medium flex items-center gap-2">
             <span className="inline-block w-2 h-2 bg-red-600 rounded-full" />
             {error}
@@ -188,12 +193,6 @@ export default function PhotoUploader({
         </div>
       )}
 
-      {/* Debug: toujours afficher pour tester */}
-      {!error && photos.length === 0 && (
-        <div className="text-xs text-gray-400">
-          Aucune erreur détectée (debug)
-        </div>
-      )}
 
       {/* Prévisualisation des photos */}
       {previewUrls.length > 0 && (
