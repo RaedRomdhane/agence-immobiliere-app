@@ -19,7 +19,38 @@ const propertySchema = new mongoose.Schema({
     type: String,
     required: [true, 'Le type de bien est requis'],
     enum: {
-      values: ['appartement', 'villa', 'terrain', 'local-commercial', 'bureau'],
+      values: [
+        // Résidentiel
+        'appartement',
+        'studio',
+        'villa',
+        'maison',
+        'duplex',
+        'triplex',
+        'riad',
+        'immeuble_residentiel',
+        // Commercial
+        'local_commercial',
+        'magasin',
+        'bureau',
+        'espace_coworking',
+        'showroom',
+        'entrepot',
+        'usine',
+        // Terrains
+        'terrain',
+        'terrain_agricole',
+        'terrain_nu',
+        'ferme',
+        // Spécialisés
+        'parking',
+        'cave',
+        'hotel',
+        'fonds_commerce',
+        'clinique',
+        'ecole',
+        'salle_fete'
+      ],
       message: '{VALUE} n\'est pas un type valide'
     }
   },

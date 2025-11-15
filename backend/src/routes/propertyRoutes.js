@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { body } = require('express-validator');
 const propertyController = require('../controllers/propertyController');
-const { protect, authorize } = require('../middlewares/auth');
+const { protect, restrictTo } = require('../middlewares/auth');
 
 // Configuration du stockage Multer
 const storage = multer.diskStorage({
@@ -58,7 +58,16 @@ const createPropertyValidation = [
     .isLength({ min: 20, max: 2000 })
     .withMessage('La description doit contenir entre 20 et 2000 caractères'),
   body('type')
-    .isIn(['appartement', 'villa', 'terrain', 'local-commercial', 'bureau'])
+    .isIn([
+      // Résidentiel
+      'appartement', 'studio', 'villa', 'maison', 'duplex', 'triplex', 'riad', 'immeuble_residentiel',
+      // Commercial
+      'local_commercial', 'magasin', 'bureau', 'espace_coworking', 'showroom', 'entrepot', 'usine',
+      // Terrains
+      'terrain', 'terrain_agricole', 'terrain_nu', 'ferme',
+      // Spécialisés
+      'parking', 'cave', 'hotel', 'fonds_commerce', 'clinique', 'ecole', 'salle_fete'
+    ])
     .withMessage('Type de bien invalide'),
   body('transactionType')
     .isIn(['vente', 'location'])
@@ -80,7 +89,7 @@ const createPropertyValidation = [
 router.post(
   '/',
   protect,
-  authorize('admin'),
+  restrictTo('admin'),
   upload.array('photos', 10), // Max 10 photos
   createPropertyValidation,
   propertyController.createProperty
