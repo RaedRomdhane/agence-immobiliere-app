@@ -51,18 +51,28 @@ const propertySchema = z.object({
     .max(2000, 'La description ne peut pas dépasser 2000 caractères'),
   // Type: string validated against PROPERTY_TYPES below
   type: z.string().nonempty('Veuillez sélectionner un type de bien').refine((val) => PROPERTY_TYPES.some(t => t.value === val), { message: 'Type de bien invalide' }),
-  transactionType: z.enum(['vente', 'location']),
-  price: z.number().min(0, 'Le prix ne peut pas être négatif'),
-  surface: z.number().min(1, 'La surface doit être au moins 1 m²'),
-  rooms: z.number().min(0).optional(),
-  bedrooms: z.number().min(0).optional(),
-  bathrooms: z.number().min(0).optional(),
-  floor: z.number().min(0).optional(),
+  transactionType: z.enum(['vente', 'location'], { message: 'Veuillez sélectionner vente ou location' }),
+  price: z.number({ message: 'Le prix doit être un nombre valide' }).min(0, 'Le prix ne peut pas être négatif'),
+  surface: z.number({ message: 'La surface doit être un nombre valide' }).min(1, 'La surface doit être au moins 1 m²'),
+  rooms: z.number({ message: 'Le nombre de pièces doit être un nombre' }).min(0).optional(),
+  bedrooms: z.number({ message: 'Le nombre de chambres doit être un nombre' }).min(0).optional(),
+  bathrooms: z.number({ message: 'Le nombre de salles de bain doit être un nombre' }).min(0).optional(),
+  floor: z.number({ message: 'L\'étage doit être un nombre' }).min(0).optional(),
   location: z.object({
     address: z.string().min(1, 'L\'adresse est requise'),
-    city: z.string().min(1, 'La ville est requise'),
-    region: z.string().min(1, 'La région est requise'),
-    zipCode: z.string().optional(),
+    city: z
+      .string()
+      .min(1, 'La ville est requise')
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La ville ne doit contenir que des lettres'),
+    region: z
+      .string()
+      .min(1, 'La région est requise')
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La région ne doit contenir que des lettres'),
+    zipCode: z
+      .string()
+      .regex(/^\d*$/, 'Le code postal ne doit contenir que des chiffres')
+      .optional()
+      .or(z.literal('')),
   }),
   features: z.object({
     parking: z.boolean(),
@@ -481,7 +491,7 @@ export default function PropertyForm() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
             Annuler
@@ -489,7 +499,7 @@ export default function PropertyForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Création en cours...' : 'Créer le bien'}
           </button>

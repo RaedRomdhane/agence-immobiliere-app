@@ -119,7 +119,7 @@ export default function PhotoModal({
 
         {/* Thumbnails */}
         {hasMultiplePhotos && (
-          <div className="mt-4 flex gap-2 justify-center overflow-x-auto pb-2">
+          <div className="mt-6 md:mt-8 flex gap-3 md:gap-4 justify-center overflow-x-auto pb-2 px-2">
             {photos.map((photo, index) => (
               <button
                 key={photo.filename}
@@ -129,7 +129,7 @@ export default function PhotoModal({
                     onGoToPhoto(index);
                   }
                 }}
-                className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all bg-gray-900 ${
                   index === currentIndex
                     ? 'border-blue-500 opacity-100 scale-110'
                     : 'border-gray-600 opacity-60 hover:opacity-90 hover:border-blue-300'
@@ -138,7 +138,7 @@ export default function PhotoModal({
                 <img
                   src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${photo.url}`}
                   alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               </button>
             ))}
