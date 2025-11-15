@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
+import FeatureFlagsManager from './FeatureFlagsManager';
 import { 
   Users, 
   Building2, 
@@ -243,6 +244,13 @@ export default function AdminDashboard() {
                 </div>
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* Feature Flags Management */}
+        <section className="py-12">
+          <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
+            <FeatureFlagsManager />
           </div>
         </section>
 

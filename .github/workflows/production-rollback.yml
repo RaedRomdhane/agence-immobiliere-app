@@ -1,0 +1,385 @@
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to rollback to (e.g., prod-20250107-143000)'
+        required: true
+        type: string
+      skip_health_check:
+        description: 'Skip post-rollback health check'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      restore_database:
+        description: 'Restore database from backup'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Job 1: Validate rollback tag
+  validate-tag:
+    name: Validate Tag
+    runs-on: ubuntu-latest
+    
+    outputs:
+      tag_exists: ${{ steps.check.outputs.exists }}
+      tag_date: ${{ steps.check.outputs.date }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Validate tag
+        id: check
+        run: |
+          TAG="${{ inputs.tag }}"
+          
+          # Check if tag exists
+          if ! git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "❌ Tag ${TAG} does not exist"
+            exit 1
+          fi
+          
+          # Validate tag format (prod-YYYYMMDD-HHMMSS)
+          if [[ ! "${TAG}" =~ ^prod-[0-9]{8}-[0-9]{6}$ ]]; then
+            echo "❌ Invalid tag format. Expected: prod-YYYYMMDD-HHMMSS"
+            exit 1
+          fi
+          
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "date=$(echo ${TAG} | cut -d'-' -f2-3)" >> $GITHUB_OUTPUT
+          
+          echo "✅ Tag ${TAG} validated successfully"
+  
+  # Job 2: Backup current state
+  backup-current-state:
+    name: Backup Current State
+    runs-on: ubuntu-latest
+    needs: [validate-tag]
+    
+    outputs:
+      backup_file: ${{ steps.backup.outputs.backup_file }}
+      backup_hash: ${{ steps.backup.outputs.backup_hash }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install MongoDB tools
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-database-tools jq
+      
+      - name: Create backup directory
+        run: mkdir -p backups
+      
+      - name: Run backup script
+        id: backup
+        run: |
+          chmod +x infrastructure/scripts/backup-mongodb.sh
+          ./infrastructure/scripts/backup-mongodb.sh
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI_PRODUCTION }}
+          BACKUP_DIR: ./backups
+          GITHUB_OUTPUT: ${{ github.output }}
+      
+      - name: Upload current state backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-safety-backup-${{ github.run_id }}
+          path: backups/*.tar.gz
+          retention-days: 90
+      
+      - name: Upload backup metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-safety-metadata-${{ github.run_id }}
+          path: backups/*-metadata.json
+          retention-days: 90
+  
+  # Job 3: Restore database (if requested)
+  restore-database:
+    name: Restore Database
+    runs-on: ubuntu-latest
+    needs: [validate-tag, backup-current-state]
+    if: inputs.restore_database == 'true'
+    environment:
+      name: prod-rollback
+    
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      
+      - name: Find backup artifact
+        id: find-backup
+        run: |
+          # Extract date from tag (prod-20250107-143000 -> 20250107-143000)
+          DATE="${{ needs.validate-tag.outputs.tag_date }}"
+          
+          echo "Looking for backup with date: ${DATE}"
+          echo "backup_pattern=mongodb-backup-${DATE}" >> $GITHUB_OUTPUT
+      
+      - name: Download backup artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name_is_regexp: true
+          name: mongodb-backup-.*
+          path: backups
+          search_artifacts: true
+          if_no_artifact_found: warn
+      
+      - name: Install MongoDB tools
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-database-tools jq
+      
+      - name: Find and restore backup
+        run: |
+          # Find the most recent backup file
+          BACKUP_FILE=$(find backups -name "*.tar.gz" -type f | sort -r | head -n 1)
+          
+          if [ -z "${BACKUP_FILE}" ]; then
+            echo "❌ No backup file found!"
+            echo "⚠️  Continuing without database restore"
+            exit 0
+          fi
+          
+          echo "Found backup: ${BACKUP_FILE}"
+          
+          chmod +x infrastructure/scripts/restore-mongodb.sh
+          SKIP_BACKUP=true ./infrastructure/scripts/restore-mongodb.sh "${BACKUP_FILE}"
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI_PRODUCTION }}
+          CI: true
+  
+  # Job 4: Rollback backend
+  rollback-backend:
+    name: Rollback Backend
+    runs-on: ubuntu-latest
+    needs: [validate-tag, backup-current-state, restore-database]
+    if: always() && (needs.restore-database.result == 'success' || needs.restore-database.result == 'skipped')
+    environment:
+      name: prod-rollback
+    
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy backend to Railway
+        run: |
+          railway link ${{ secrets.RAILWAY_PROJECT_ID_PRODUCTION }}
+          railway up --service backend --environment production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  
+  # Job 5: Rollback frontend
+  rollback-frontend:
+    name: Rollback Frontend
+    runs-on: ubuntu-latest
+    needs: [validate-tag, backup-current-state]
+    environment:
+      name: prod-rollback
+    
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      
+      - name: Deploy frontend to Vercel
+        working-directory: ./frontend
+        run: vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL_PRODUCTION }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+  
+  # Job 6: Post-rollback health check
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: [rollback-backend, rollback-frontend]
+    if: always() && needs.rollback-backend.result == 'success' && needs.rollback-frontend.result == 'success' && inputs.skip_health_check == 'false'
+    
+    outputs:
+      health_status: ${{ steps.health.outputs.health_status }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Wait for deployment
+        run: sleep 30
+      
+      - name: Run health check
+        id: health
+        run: |
+          chmod +x infrastructure/scripts/health-check.sh
+          ./infrastructure/scripts/health-check.sh
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL_PRODUCTION }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL_PRODUCTION }}
+          HEALTH_CHECK_TIMEOUT: 30
+          GITHUB_OUTPUT: ${{ github.output }}
+      
+      - name: Upload health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-health-check-${{ github.run_id }}
+          path: health-check-report-*.json
+          retention-days: 30
+      
+      - name: Check health status
+        run: |
+          if [ "${{ steps.health.outputs.health_status }}" != "HEALTHY" ]; then
+            echo "⚠️  Health check status: ${{ steps.health.outputs.health_status }}"
+            echo "This may require manual intervention!"
+          fi
+  
+  # Job 7: Calculate rollback time
+  calculate-metrics:
+    name: Calculate Metrics
+    runs-on: ubuntu-latest
+    needs: [validate-tag, backup-current-state, restore-database, rollback-backend, rollback-frontend, health-check]
+    if: always()
+    
+    steps:
+      - name: Calculate rollback time
+        id: metrics
+        run: |
+          # Calculate total time from workflow start to health check completion
+          START_TIME="${{ github.event.workflow_run.created_at }}"
+          END_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          
+          # Get workflow duration in seconds
+          DURATION_SECONDS=$(($(date -d "${END_TIME}" +%s) - $(date -d "${START_TIME}" +%s)))
+          DURATION_MINUTES=$((DURATION_SECONDS / 60))
+          
+          echo "rollback_duration_seconds=${DURATION_SECONDS}" >> $GITHUB_OUTPUT
+          echo "rollback_duration_minutes=${DURATION_MINUTES}" >> $GITHUB_OUTPUT
+          
+          echo "⏱️  Rollback Duration: ${DURATION_MINUTES}m ${DURATION_SECONDS}s"
+          
+          # Check if under 15 minute target
+          if [ ${DURATION_MINUTES} -lt 15 ]; then
+            echo "✅ Rollback completed within 15 minute target!"
+          else
+            echo "⚠️  Rollback exceeded 15 minute target (${DURATION_MINUTES} minutes)"
+          fi
+      
+      - name: Create metrics summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📊 Rollback Metrics
+          
+          **Tag:** \`${{ inputs.tag }}\`
+          **Duration:** ${{ steps.metrics.outputs.rollback_duration_minutes }} minutes
+          **Target:** <15 minutes
+          
+          **Jobs Status:**
+          - Validate Tag: ${{ needs.validate-tag.result }}
+          - Backup Current: ${{ needs.backup-current-state.result }}
+          - Restore DB: ${{ needs.restore-database.result }}
+          - Rollback Backend: ${{ needs.rollback-backend.result }}
+          - Rollback Frontend: ${{ needs.rollback-frontend.result }}
+          - Health Check: ${{ needs.health-check.result }}
+          
+          **Health Status:** ${{ needs.health-check.outputs.health_status || 'N/A' }}
+          EOF
+  
+  # Job 8: Notify results
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [validate-tag, backup-current-state, restore-database, rollback-backend, rollback-frontend, health-check, calculate-metrics]
+    if: always()
+    
+    steps:
+      - name: Determine rollback status
+        id: status
+        run: |
+          if [ "${{ needs.rollback-backend.result }}" == "success" ] && [ "${{ needs.rollback-frontend.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create GitHub issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const status = '${{ steps.status.outputs.status }}';
+            const emoji = '${{ steps.status.outputs.emoji }}';
+            
+            const body = `## ${emoji} Production Rollback ${status === 'success' ? 'Completed' : 'Failed'}
+            
+            **Tag:** \`${{ inputs.tag }}\`
+            **Triggered by:** @${context.actor}
+            **Workflow Run:** ${runUrl}
+            **Duration:** ${{ needs.calculate-metrics.outputs.rollback_duration_minutes || 'N/A' }} minutes
+            
+            **Jobs:**
+            - ✅ Validate Tag: ${{ needs.validate-tag.result }}
+            - ✅ Backup Current: ${{ needs.backup-current-state.result }}
+            - 🗄️ Restore DB: ${{ needs.restore-database.result }}
+            - 🚀 Rollback Backend: ${{ needs.rollback-backend.result }}
+            - 🎨 Rollback Frontend: ${{ needs.rollback-frontend.result }}
+            - 🏥 Health Check: ${{ needs.health-check.result }}
+            
+            **Health Status:** ${{ needs.health-check.outputs.health_status || 'N/A' }}
+            
+            **Safety Backup:** Available in artifacts (90 days retention)
+            
+            ${status === 'failure' ? '**⚠️ Manual intervention may be required!**' : ''}
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `${emoji} Production Rollback to ${inputs.tag} - ${new Date().toISOString()}`,
+              body: body,
+              labels: ['rollback', 'production', status === 'failure' ? 'critical' : 'resolved']
+            });

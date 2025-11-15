@@ -11,7 +11,11 @@ const routes = require('./routes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const featureFlagRoutes = require('./routes/featureFlagRoutes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
+const logger = require('./config/logger');
+const { metricsMiddleware, register } = require('../metrics');
+const { requireFeatureFlag } = require('./middlewares/featureFlag');
 
 const app = express();
 
@@ -71,10 +75,22 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Logging
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+// Logging: use morgan but stream into winston so logs can be centralized
+app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined', { stream: logger.stream }));
+
+// Metrics middleware (Prometheus)
+app.use(metricsMiddleware);
+
+// Expose Prometheus metrics
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.send(await register.metrics());
+  } catch (err) {
+    logger.error('Failed to collect metrics: %o', err);
+    res.status(500).send('Error collecting metrics');
+  }
+});
 
 // Body parser
 app.use(express.json());
@@ -115,11 +131,15 @@ app.get('/', (req, res) => {
   });
 });
 
-// Routes API
+// Routes API - L'ordre est important !
+// Routes spécifiques en premier
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api', routes);
+app.use('/api/feature-flags', featureFlagRoutes);
+// Admin routes protected by feature flag (can be toggled on/off)
+app.use('/api/admin', requireFeatureFlag('admin-panel'), adminRoutes);
+// Route générale en dernier (ne pas mettre /api car déjà dans les routes ci-dessus)
+app.use('/', routes);
 
 // Gestion des routes non trouvées
 app.use(notFound);

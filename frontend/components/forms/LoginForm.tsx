@@ -24,6 +24,29 @@ export default function LoginForm() {
     return registered === 'true' ? 'Inscription réussie ! Vous pouvez maintenant vous connecter.' : null;
   });
 
+  // Gérer les erreurs Google OAuth depuis l'URL
+  useEffect(() => {
+    const googleError = searchParams.get('error');
+    if (googleError) {
+      // Décoder le message d'erreur
+      const decodedError = decodeURIComponent(googleError);
+      
+      // Messages d'erreur personnalisés selon le type
+      let errorMessage = decodedError;
+      
+      if (decodedError.includes('Aucun compte trouvé') || decodedError.includes('compte trouvé')) {
+        errorMessage = "❌ Aucun compte trouvé avec ce compte Google.\n\n👉 Veuillez vous inscrire d'abord en cliquant sur le lien \"S'inscrire\" ci-dessous, puis utilisez le bouton \"S'inscrire avec Google\".";
+      } else if (decodedError === 'google_auth_failed') {
+        errorMessage = "❌ Échec de l'authentification Google. Veuillez réessayer.";
+      }
+      
+      setError(errorMessage);
+      
+      // Nettoyer l'URL après avoir affiché l'erreur
+      router.replace('/login', { scroll: false });
+    }
+  }, [searchParams, router]);
+
   const {
     register,
     handleSubmit,
@@ -80,7 +103,7 @@ export default function LoginForm() {
         {/* Error Message */}
         {error && (
           <Alert type="error" className="animate-in fade-in-50 duration-300">
-            <div className="font-medium">{error}</div>
+            <div className="font-medium whitespace-pre-line">{error}</div>
           </Alert>
         )}
 
