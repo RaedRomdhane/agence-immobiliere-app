@@ -1,12 +1,130 @@
 # Scripts de Déploiement Infrastructure
 
-Ce dossier contient les scripts pour déployer et valider l'infrastructure Terraform.
+Ce dossier contient les scripts pour déployer, valider l'infrastructure et gérer les opérations de production.
 
 ## 📁 Contenu
 
+### Scripts de Déploiement
 - **`deploy.ps1`** - Script PowerShell de déploiement (Windows)
 - **`deploy.sh`** - Script Bash de déploiement (Linux/Mac)
 - **`validate.ps1`** - Script de validation pré-déploiement (Windows)
+
+### Scripts de Production (AW-26)
+- **`backup-mongodb.sh`** - Sauvegarde automatique MongoDB avec vérification d'intégrité
+- **`restore-mongodb.sh`** - Restauration MongoDB depuis une sauvegarde
+- **`health-check.sh`** - Vérifications de santé post-déploiement
+
+---
+
+## 🔄 Scripts de Production
+
+### backup-mongodb.sh
+
+**Description:** Crée une sauvegarde complète de MongoDB avec compression, hash SHA256 et métadonnées.
+
+**Usage:**
+```bash
+chmod +x backup-mongodb.sh
+
+# Sauvegarde locale
+export MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/dbname"
+./backup-mongodb.sh
+
+# Sauvegarde avec upload Azure (optionnel)
+export AZURE_STORAGE_CONNECTION="DefaultEndpointsProtocol=https;..."
+./backup-mongodb.sh
+```
+
+**Sorties:**
+- `mongodb-backup-YYYYMMDD-HHMMSS.tar.gz` - Archive compressée
+- `mongodb-backup-YYYYMMDD-HHMMSS-metadata.json` - Métadonnées avec hash
+- `mongodump.log` - Logs détaillés
+
+**Fonctionnalités:**
+- ✅ Validation des dépendances (mongodump, jq, tar)
+- ✅ Test de connexion MongoDB
+- ✅ Compression gzip automatique
+- ✅ Hash SHA256 pour vérifier l'intégrité
+- ✅ Upload optionnel vers Azure Blob Storage
+- ✅ Nettoyage automatique (garde les 30 dernières)
+- ✅ Intégration GitHub Actions
+
+**Temps d'exécution:** 2-5 minutes (selon taille DB)
+
+---
+
+### restore-mongodb.sh
+
+**Description:** Restaure MongoDB depuis une sauvegarde avec validation d'intégrité et sauvegarde de sécurité.
+
+**Usage:**
+```bash
+chmod +x restore-mongodb.sh
+
+# Restauration avec sauvegarde de sécurité
+export MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/dbname"
+./restore-mongodb.sh ./backups/mongodb-backup-20250107-143000.tar.gz
+
+# Restauration sans sauvegarde de sécurité (dangereux!)
+export SKIP_BACKUP=true
+./restore-mongodb.sh ./backups/mongodb-backup-20250107-143000.tar.gz
+```
+
+**Fonctionnalités:**
+- ✅ Validation du fichier de sauvegarde
+- ✅ Vérification d'intégrité (hash SHA256)
+- ✅ Sauvegarde de sécurité avant restauration
+- ✅ Extraction et restauration automatique
+- ✅ Confirmation interactive (désactivable en CI)
+- ✅ Vérification post-restauration
+- ✅ Intégration GitHub Actions
+
+**Temps d'exécution:** 3-5 minutes (selon taille DB)
+
+**⚠️ ATTENTION:** Cette opération remplace toutes les données actuelles!
+
+---
+
+### health-check.sh
+
+**Description:** Effectue des vérifications de santé complètes de l'application déployée.
+
+**Usage:**
+```bash
+chmod +x health-check.sh
+
+# Vérification backend + frontend
+export BACKEND_URL="https://api.agence-immobiliere.com"
+export FRONTEND_URL="https://www.agence-immobiliere.com"
+./health-check.sh
+
+# Vérification backend uniquement
+export BACKEND_URL="https://api.agence-immobiliere.com"
+./health-check.sh
+```
+
+**Vérifications effectuées:**
+- ✅ Health endpoint API
+- ✅ Connectivité base de données
+- ✅ Endpoints d'authentification
+- ✅ Endpoints API critiques
+- ✅ Temps de réponse (<2s cible)
+- ✅ Disponibilité frontend
+- ✅ Certificat SSL (expiration)
+
+**Sorties:**
+- Rapport console avec couleurs
+- `health-check-report-YYYYMMDD-HHMMSS.json` - Rapport JSON détaillé
+- Exit code: 0 = succès, 1 = échec
+
+**Statuts:**
+- `HEALTHY` - Tous les tests passent
+- `DEGRADED` - Avertissements présents
+- `UNHEALTHY` - Tests échoués
+
+**Temps d'exécution:** <1 minute
+
+---
 
 ## 🚀 Scripts de Déploiement
 

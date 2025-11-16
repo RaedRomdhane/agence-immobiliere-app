@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Photo Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        
+        .test-container {
+            border: 2px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .preview-item {
+            position: relative;
+            aspect-ratio: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        
+        .preview-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .method-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Prévisualisation d'Images</h1>
+    <p>Ce test permet d'identifier exactement où se trouve le problème avec les images noires.</p>
+    
+    <input type="file" id="fileInput" accept="image/*" multiple style="margin-bottom: 20px;">
+    
+    <!-- Test 1: URL.createObjectURL -->
+    <div class="test-container">
+        <div class="method-title">Méthode 1: URL.createObjectURL (blob)</div>
+        <div id="preview1" class="preview-grid"></div>
+        <div id="info1" class="file-info"></div>
+    </div>
+    
+    <!-- Test 2: FileReader base64 -->
+    <div class="test-container">
+        <div class="method-title">Méthode 2: FileReader avec base64</div>
+        <div id="preview2" class="preview-grid"></div>
+        <div id="info2" class="file-info"></div>
+    </div>
+    
+    <!-- Test 3: Image avec styles inline -->
+    <div class="test-container">
+        <div class="method-title">Méthode 3: Styles inline forcés</div>
+        <div id="preview3" class="preview-grid"></div>
+        <div id="info3" class="file-info"></div>
+    </div>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            console.log('📁 Fichiers sélectionnés:', files.length);
+            
+            // Nettoyer les previews
+            document.getElementById('preview1').innerHTML = '';
+            document.getElementById('preview2').innerHTML = '';
+            document.getElementById('preview3').innerHTML = '';
+            
+            // Test 1: URL.createObjectURL
+            console.log('\n🧪 TEST 1: URL.createObjectURL');
+            files.forEach((file, i) => {
+                const url = URL.createObjectURL(file);
+                console.log(`Blob URL ${i + 1}:`, url);
+                
+                const container = document.createElement('div');
+                container.className = 'preview-item';
+                
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'preview-img';
+                img.onload = () => {
+                    console.log(`✅ Image ${i + 1} chargée (méthode 1):`, img.naturalWidth, 'x', img.naturalHeight);
+                };
+                img.onerror = (err) => {
+                    console.error(`❌ Erreur image ${i + 1} (méthode 1):`, err);
+                };
+                
+                container.appendChild(img);
+                document.getElementById('preview1').appendChild(container);
+            });
+            
+            document.getElementById('info1').innerHTML = `${files.length} image(s) - Blob URLs`;
+            
+            // Test 2: FileReader base64
+            console.log('\n🧪 TEST 2: FileReader base64');
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                try {
+                    const reader = new FileReader();
+                    const base64 = await new Promise((resolve, reject) => {
+                        reader.onload = (e) => {
+                            const result = e.target.result;
+                            console.log(`Base64 ${i + 1} créé, taille:`, result.length, 'caractères');
+                            console.log(`Préfixe:`, result.substring(0, 50));
+                            resolve(result);
+                        };
+                        reader.onerror = (err) => {
+                            console.error(`❌ Erreur FileReader ${i + 1}:`, err);
+                            reject(err);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    const container = document.createElement('div');
+                    container.className = 'preview-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = base64;
+                    img.className = 'preview-img';
+                    img.onload = () => {
+                        console.log(`✅ Image ${i + 1} chargée (méthode 2):`, img.naturalWidth, 'x', img.naturalHeight);
+                    };
+                    img.onerror = (err) => {
+                        console.error(`❌ Erreur image ${i + 1} (méthode 2):`, err);
+                    };
+                    
+                    container.appendChild(img);
+                    document.getElementById('preview2').appendChild(container);
+                } catch (error) {
+                    console.error('❌ Erreur conversion base64:', error);
+                }
+            }
+            
+            document.getElementById('info2').innerHTML = `${files.length} image(s) - Base64`;
+            
+            // Test 3: Styles inline forcés
+            console.log('\n🧪 TEST 3: Styles inline forcés');
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                try {
+                    const reader = new FileReader();
+                    const base64 = await new Promise((resolve, reject) => {
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    
+                    const container = document.createElement('div');
+                    container.className = 'preview-item';
+                    container.style.background = 'white';
+                    container.style.display = 'block';
+                    
+                    const img = document.createElement('img');
+                    img.src = base64;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
+                    img.style.display = 'block';
+                    img.style.backgroundColor = 'white';
+                    img.onload = () => {
+                        console.log(`✅ Image ${i + 1} chargée (méthode 3):`, img.naturalWidth, 'x', img.naturalHeight);
+                    };
+                    img.onerror = (err) => {
+                        console.error(`❌ Erreur image ${i + 1} (méthode 3):`, err);
+                    };
+                    
+                    container.appendChild(img);
+                    document.getElementById('preview3').appendChild(container);
+                } catch (error) {
+                    console.error('❌ Erreur test 3:', error);
+                }
+            }
+            
+            document.getElementById('info3').innerHTML = `${files.length} image(s) - Styles inline`;
+            
+            // Infos générales sur les fichiers
+            console.log('\n📊 Informations fichiers:');
+            files.forEach((file, i) => {
+                console.log(`Fichier ${i + 1}:`, {
+                    name: file.name,
+                    type: file.type,
+                    size: (file.size / 1024).toFixed(2) + ' KB',
+                    lastModified: new Date(file.lastModified).toLocaleString()
+                });
+            });
+        });
+    </script>
+</body>
+</html>

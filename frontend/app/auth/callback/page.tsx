@@ -27,20 +27,27 @@ function AuthCallbackContent() {
           
           // Récupérer les informations utilisateur
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+          console.log('📍 Callback: Récupération infos utilisateur depuis:', `${apiUrl}/auth/me`);
+          console.log('📍 Token:', token.substring(0, 20) + '...');
+          
           const response = await axios.get(`${apiUrl}/auth/me`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
 
+          console.log('📍 Réponse API:', response.data);
+
           if (response.data.success) {
             // Sauvegarder les infos utilisateur
-            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            const userData = response.data.data.user;
+            localStorage.setItem('user', JSON.stringify(userData));
             
-            // Rediriger vers le dashboard
-            router.push('/');
-            // Forcer le rechargement pour que l'AuthProvider détecte le changement
-            window.location.href = '/';
+            // Rediriger vers la page d'accueil (qui affiche le dashboard selon le rôle)
+            const redirectUrl = '/';
+            
+            // Forcer le rechargement complet pour que l'AuthProvider détecte le changement
+            window.location.href = redirectUrl;
           } else {
             // Token invalide
             localStorage.removeItem('token');

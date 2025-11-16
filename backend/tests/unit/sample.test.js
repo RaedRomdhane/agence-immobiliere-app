@@ -4,7 +4,7 @@ const app = require('../../src/app');
 describe('Application de base', () => {
   describe('GET /', () => {
     it('devrait retourner un message de bienvenue', async () => {
-      const response = await request(app).get('/api');
+      const response = await request(app).get('/');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');

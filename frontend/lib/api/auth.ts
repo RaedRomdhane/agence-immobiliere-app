@@ -56,7 +56,8 @@ export const authApi = {
    */
   googleLogin: () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    window.location.href = `${apiUrl}/api/auth/google`;
+    // Ne pas ajouter /api car il est déjà dans NEXT_PUBLIC_API_URL
+    window.location.href = `${apiUrl}/auth/google`;
   },
 
   /**
@@ -64,7 +65,8 @@ export const authApi = {
    */
   googleSignup: () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    window.location.href = `${apiUrl}/api/auth/google/signup`;
+    // Ne pas ajouter /api car il est déjà dans NEXT_PUBLIC_API_URL
+    window.location.href = `${apiUrl}/auth/google/signup`;
   },
 
   /**
