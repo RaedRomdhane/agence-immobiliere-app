@@ -1,13 +1,11 @@
 'use client';
 
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+
 import { Search, MapPin, Bed, Bath, Square, Heart } from 'lucide-react';
 
 export default function PropertiesPage() {
   return (
     <div className="min-h-screen bg-white">
-      <Header />
       
       <main className="pt-16">
         {/* Hero Section */}
@@ -365,7 +363,6 @@ export default function PropertiesPage() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

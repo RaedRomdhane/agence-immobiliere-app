@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { useAuth } from "@/components/auth/AuthProvider";
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 import DashboardHome from '@/components/dashboard/DashboardHome';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import Alert from '@/components/ui/Alert';
@@ -68,7 +66,7 @@ function HomeContent() {
     if (user?.role === 'admin') {
       return (
         <>
-          <Header />
+          {/* <Header /> removed, now in layout */}
           {/* Success Toast - Position fixe en haut à droite */}
           {showSuccessToast && (
             <div className="fixed top-20 right-4 z-50 max-w-md animate-in slide-in-from-right duration-300">
@@ -84,7 +82,7 @@ function HomeContent() {
             </div>
           )}
           <AdminDashboard />
-          <Footer />
+          {/* <Footer /> removed, now in layout */}
         </>
       );
     }
@@ -92,7 +90,7 @@ function HomeContent() {
     // Sinon, afficher le dashboard client
     return (
       <>
-        <Header />
+        {/* <Header /> removed, now in layout */}
         {/* Success Toast - Position fixe en haut à droite */}
         {showSuccessToast && (
           <div className="fixed top-20 right-4 z-50 max-w-md animate-in slide-in-from-right duration-300">
@@ -108,7 +106,7 @@ function HomeContent() {
           </div>
         )}
         <DashboardHome />
-        <Footer />
+        {/* <Footer /> removed, now in layout */}
       </>
     );
   }
@@ -116,65 +114,11 @@ function HomeContent() {
   // Sinon, afficher la landing page pour les visiteurs
   return (
     <div className="min-h-screen bg-white">
-      <Header />
-      
       <main className="pt-16">{/* Padding for fixed header */}
-        
-        {/* Hero Section */}
+        {/* Hero Section (logo removed as requested) */}
         <section className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          </div>
-          
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-            <div className="text-center max-w-4xl mx-auto">
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-                Trouvez le bien immobilier
-                <span className="block bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  de vos rêves
-                </span>
-              </h1>
-              <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                Des milliers de biens disponibles à la vente et à la location. 
-                Trouvez votre futur chez-vous en quelques clics.
-              </p>
-              
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                <Link
-                  href="/register"
-                  className="px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  Commencer maintenant
-                </Link>
-                <Link
-                  href="/properties"
-                  className="px-8 py-4 text-lg font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-xl hover:border-blue-600 hover:text-blue-600 transition-all shadow-md hover:shadow-lg"
-                >
-                  Explorer les biens
-                </Link>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto pt-8 border-t border-gray-200">
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">500+</div>
-                  <div className="text-sm md:text-base text-gray-600 mt-1">Biens disponibles</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">10K+</div>
-                  <div className="text-sm md:text-base text-gray-600 mt-1">Clients satisfaits</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">50+</div>
-                  <div className="text-sm md:text-base text-gray-600 mt-1">Villes couvertes</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* ...existing code... */}
         </section>
-
         {/* Features Section */}
         <section className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -488,7 +432,6 @@ function HomeContent() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

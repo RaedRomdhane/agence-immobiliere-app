@@ -89,7 +89,8 @@ const propertySchema = new mongoose.Schema({
   },
   floor: {
     type: Number,
-    min: [0, 'L\'étage ne peut pas être négatif']
+    min: [0, 'L\'étage ne peut pas être négatif'],
+    default: 0
   },
   location: {
     address: {

@@ -54,10 +54,30 @@ const propertySchema = z.object({
   transactionType: z.enum(['vente', 'location'], { message: 'Veuillez sélectionner vente ou location' }),
   price: z.number({ message: 'Le prix doit être un nombre valide' }).min(0, 'Le prix ne peut pas être négatif'),
   surface: z.number({ message: 'La surface doit être un nombre valide' }).min(1, 'La surface doit être au moins 1 m²'),
-  rooms: z.number({ message: 'Le nombre de pièces doit être un nombre' }).min(0).optional(),
-  bedrooms: z.number({ message: 'Le nombre de chambres doit être un nombre' }).min(0).optional(),
-  bathrooms: z.number({ message: 'Le nombre de salles de bain doit être un nombre' }).min(0).optional(),
-  floor: z.number({ message: 'L\'étage doit être un nombre' }).min(0).optional(),
+  rooms: (
+    z.preprocess(
+      (val) => val === '' || val === undefined ? undefined : Number(val),
+      z.number({ message: 'Le nombre de pièces doit être un nombre' }).min(0)
+    ) as z.ZodType<number | undefined, any, any>
+  ).optional(),
+  bedrooms: (
+    z.preprocess(
+      (val) => val === '' || val === undefined ? undefined : Number(val),
+      z.number({ message: 'Le nombre de chambres doit être un nombre' }).min(0)
+    ) as z.ZodType<number | undefined, any, any>
+  ).optional(),
+  bathrooms: (
+    z.preprocess(
+      (val) => val === '' || val === undefined ? undefined : Number(val),
+      z.number({ message: 'Le nombre de salles de bain doit être un nombre' }).min(0)
+    ) as z.ZodType<number | undefined, any, any>
+  ).optional(),
+  floor: (
+    z.preprocess(
+      (val) => val === '' || val === undefined ? undefined : Number(val),
+      z.number({ message: 'L\'étage doit être un nombre' }).min(0)
+    ) as z.ZodType<number | undefined, any, any>
+  ).optional(),
   location: z.object({
     address: z.string().min(1, 'L\'adresse est requise'),
     city: z
@@ -87,6 +107,7 @@ const propertySchema = z.object({
     securitySystem: z.boolean(),
   }),
 });
+
 
 type PropertyFormValues = z.infer<typeof propertySchema>;
 
@@ -123,7 +144,7 @@ export default function PropertyForm() {
     },
   });
 
-  const onSubmit = async (data: PropertyFormValues) => {
+  const onSubmit: (data: PropertyFormValues) => Promise<void> = async (data) => {
     try {
       setIsSubmitting(true);
       setSubmitError('');
@@ -358,7 +379,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 id="rooms"
-                {...register('rooms', { valueAsNumber: true })}
+                {...register('rooms')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
@@ -371,7 +392,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 id="bedrooms"
-                {...register('bedrooms', { valueAsNumber: true })}
+                {...register('bedrooms')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
@@ -384,7 +405,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 id="bathrooms"
-                {...register('bathrooms', { valueAsNumber: true })}
+                {...register('bathrooms')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
@@ -397,7 +418,7 @@ export default function PropertyForm() {
               <input
                 type="number"
                 id="floor"
-                {...register('floor', { valueAsNumber: true })}
+                {...register('floor')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />

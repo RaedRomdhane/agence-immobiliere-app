@@ -121,10 +121,10 @@ export const createProperty = async (propertyData: PropertyFormData, token: stri
     formData.append('price', propertyData.price.toString());
     formData.append('surface', propertyData.surface.toString());
 
-    if (propertyData.rooms) formData.append('rooms', propertyData.rooms.toString());
-    if (propertyData.bedrooms) formData.append('bedrooms', propertyData.bedrooms.toString());
-    if (propertyData.bathrooms) formData.append('bathrooms', propertyData.bathrooms.toString());
-    if (propertyData.floor) formData.append('floor', propertyData.floor.toString());
+    if (propertyData.rooms !== undefined && propertyData.rooms !== null) formData.append('rooms', propertyData.rooms.toString());
+    if (propertyData.bedrooms !== undefined && propertyData.bedrooms !== null) formData.append('bedrooms', propertyData.bedrooms.toString());
+    if (propertyData.bathrooms !== undefined && propertyData.bathrooms !== null) formData.append('bathrooms', propertyData.bathrooms.toString());
+    if (propertyData.floor !== undefined && propertyData.floor !== null) formData.append('floor', propertyData.floor.toString());
 
     // Ajouter la localisation (JSON stringifié)
     formData.append('location', JSON.stringify(propertyData.location));

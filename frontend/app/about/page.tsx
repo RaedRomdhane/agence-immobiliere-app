@@ -7,7 +7,6 @@ import { Shield, Users, Award, TrendingUp, Heart, Clock } from 'lucide-react';
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white">
-      <Header />
       
       <main className="pt-16">
         {/* Hero Section */}
@@ -216,7 +215,6 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

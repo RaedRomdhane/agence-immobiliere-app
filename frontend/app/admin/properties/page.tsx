@@ -86,10 +86,19 @@ export default function PropertiesPage() {
     return null;
   }
 
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-18">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* Back Button */}
+        <button
+          onClick={() => router.back()}
+          className="mb-4 flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Retour
+        </button>
+        {/* Header removed, now in layout */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Gestion des biens</h1>
@@ -201,20 +210,20 @@ export default function PropertiesPage() {
                   </div>
 
                   <div className="flex gap-2 text-sm text-gray-600 mb-4">
-                    {property.bedrooms ? (
+                    {property.bedrooms && property.bedrooms > 0 ? (
                       <span>{property.bedrooms} ch.</span>
                     ) : null}
-                    {property.bathrooms ? (
+                    {property.bathrooms && property.bathrooms > 0 ? (
                       <span>• {property.bathrooms} sdb.</span>
                     ) : null}
-                    {property.rooms ? (
+                    {property.rooms && property.rooms > 0 ? (
                       <span>• {property.rooms} pièces</span>
                     ) : null}
                   </div>
 
                   <div className="flex gap-2">
                     <Link
-                      href={`/admin/properties/${property._id}`}
+                      href={`/properties/${property._id}`}
                       className="flex-1 px-4 py-2 text-center border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                     >
                       Voir

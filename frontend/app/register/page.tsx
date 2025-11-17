@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RegisterForm from '@/components/forms/RegisterForm';
-import Header from '@/components/layout/Header';
 import { Building2, Shield, Users, TrendingUp, Award, Headphones, X } from 'lucide-react';
 
 function RegisterContent() {
@@ -27,7 +26,7 @@ function RegisterContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <Header />
+      {/* <Header /> removed, now in layout */}
       
       <div className="min-h-screen flex pt-16">{/* pt-16 for fixed header spacing */}
       {/* Error Notification */}
@@ -178,7 +177,7 @@ function RegisterContent() {
             
             <RegisterForm />
 
-            {/* CTA secondaire */}
+            {/* CTA secondaire
             <div className="mt-6">
               <a 
                 href="/discover" 
@@ -186,7 +185,7 @@ function RegisterContent() {
               >
                 Découvrir la plateforme sans créer de compte
               </a>
-            </div>
+            </div> */}
             
             <div className="mt-8 pt-6 border-t border-gray-100">
               <p className="text-xs text-center text-gray-500 leading-relaxed">
