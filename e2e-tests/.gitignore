@@ -1,0 +1,9 @@
+﻿node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+test-results.json
+test-results.xml
+.env
+.env.local

@@ -1,0 +1,40 @@
+<testsuites id="" name="" tests="14" failures="0" skipped="0" errors="0" time="15.927217000000002">
+<testsuite name="auth\login.spec.ts" timestamp="2025-11-04T18:15:35.084Z" hostname="chromium" tests="6" failures="0" skipped="0" time="52.271" errors="0">
+<testcase name="User Login Tests › should show Google login button" classname="auth\login.spec.ts" time="7.95">
+</testcase>
+<testcase name="User Login Tests › should navigate to register page" classname="auth\login.spec.ts" time="7.508">
+</testcase>
+<testcase name="User Login Tests › should show error for invalid credentials" classname="auth\login.spec.ts" time="9.289">
+</testcase>
+<testcase name="User Login Tests › should validate required email field" classname="auth\login.spec.ts" time="7.445">
+</testcase>
+<testcase name="User Login Tests › should validate required password field" classname="auth\login.spec.ts" time="7.467">
+</testcase>
+<testcase name="User Login Tests › should login successfully with valid credentials" classname="auth\login.spec.ts" time="12.612">
+</testcase>
+</testsuite>
+<testsuite name="auth\registration.spec.ts" timestamp="2025-11-04T18:15:35.084Z" hostname="chromium" tests="5" failures="0" skipped="0" time="22.72" errors="0">
+<testcase name="User Registration Tests › should successfully register with valid data" classname="auth\registration.spec.ts" time="6.784">
+<system-out>
+<![CDATA[After registration - URL: https://agence-immobiliere-app.vercel.app/register, Error: 
+]]>
+</system-out>
+</testcase>
+<testcase name="User Registration Tests › should show Google signup button" classname="auth\registration.spec.ts" time="2.338">
+</testcase>
+<testcase name="User Registration Tests › should navigate to login page" classname="auth\registration.spec.ts" time="4.17">
+</testcase>
+<testcase name="User Registration Tests › should validate required fields" classname="auth\registration.spec.ts" time="4.611">
+</testcase>
+<testcase name="User Registration Tests › should register without optional phone" classname="auth\registration.spec.ts" time="4.817">
+</testcase>
+</testsuite>
+<testsuite name="auth\setup.spec.ts" timestamp="2025-11-04T18:15:35.084Z" hostname="chromium" tests="3" failures="0" skipped="0" time="4.816" errors="0">
+<testcase name="Basic E2E Setup Test › should load the home page" classname="auth\setup.spec.ts" time="1.62">
+</testcase>
+<testcase name="Basic E2E Setup Test › should navigate to login page" classname="auth\setup.spec.ts" time="1.45">
+</testcase>
+<testcase name="Basic E2E Setup Test › should navigate to register page" classname="auth\setup.spec.ts" time="1.746">
+</testcase>
+</testsuite>
+</testsuites>

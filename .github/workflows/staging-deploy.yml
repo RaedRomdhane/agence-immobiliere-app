@@ -1,4 +1,4 @@
-name: Deploy to Staging
+﻿name: Deploy to Staging
 
 on:
   push:
@@ -82,13 +82,13 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl -f ${{ secrets.STAGING_API_URL }}/health; then
-              echo "✅ Backend health check passed"
+              echo " Backend health check passed"
               exit 0
             fi
             echo "Attempt $i failed, retrying..."
             sleep 10
           done
-          echo "❌ Backend health check failed"
+          echo " Backend health check failed"
           exit 1
 
   # Job 3: Deploy frontend to Vercel
@@ -125,9 +125,9 @@ jobs:
       - name: Frontend health check
         run: |
           if curl -f ${{ secrets.STAGING_FRONTEND_URL }}; then
-            echo "✅ Frontend deployed successfully"
+            echo " Frontend deployed successfully"
           else
-            echo "❌ Frontend health check failed"
+            echo " Frontend health check failed"
             exit 1
           fi
 
@@ -152,19 +152,93 @@ jobs:
             -d '{"email":"test@example.com","password":"Test123456!","confirmPassword":"Test123456!","firstName":"Test","lastName":"User"}')
           
           if [[ $response == *"200"* ]] || [[ $response == *"409"* ]]; then
-            echo "✅ Registration endpoint working"
+            echo " Registration endpoint working"
           else
-            echo "❌ Registration endpoint failed: $response"
+            echo " Registration endpoint failed: $response"
             exit 1
           fi
       
       - name: Notify deployment success
         run: |
-          echo "🎉 Staging deployment successful!"
+          echo " Staging deployment successful!"
           echo "Backend: ${{ secrets.STAGING_API_URL }}"
           echo "Frontend: ${{ secrets.STAGING_FRONTEND_URL }}"
 
-  # Job 5: Rollback on failure (manual trigger)
+  # Job 5: Run E2E Tests
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: e2e-tests/package-lock.json
+      
+      - name: Install dependencies
+        run: cd e2e-tests && npm ci
+      
+      - name: Install Playwright browsers
+        run: cd e2e-tests && npx playwright install --with-deps chromium
+      
+      - name: Run E2E tests
+        run: cd e2e-tests && npm test
+        env:
+          STAGING_URL: ${{ secrets.STAGING_FRONTEND_URL }}
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            e2e-tests/playwright-report/
+            e2e-tests/test-results.json
+            e2e-tests/test-results.xml
+          retention-days: 30
+      
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-screenshots
+          path: e2e-tests/test-results/
+          retention-days: 30
+      
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '##  E2E Test Results\n\n';
+            
+            try {
+              const results = JSON.parse(fs.readFileSync('e2e-tests/test-results.json', 'utf8'));
+              const passed = results.suites.reduce((acc, suite) => acc + suite.specs.filter(s => s.ok).length, 0);
+              const failed = results.suites.reduce((acc, suite) => acc + suite.specs.filter(s => !s.ok).length, 0);
+              
+              comment += ` **Passed:** ${passed}\n`;
+              comment += ` **Failed:** ${failed}\n\n`;
+              comment += ` [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            } catch (e) {
+              comment += ' Could not parse test results\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Job 6: Rollback on failure (manual trigger)
   rollback:
     name: Rollback Deployment
     runs-on: ubuntu-latest
@@ -174,7 +248,7 @@ jobs:
     steps:
       - name: Rollback Railway
         run: |
-          echo "⚠️ Deployment failed, initiating rollback..."
+          echo " Deployment failed, initiating rollback..."
           railway rollback --yes
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
@@ -185,4 +259,4 @@ jobs:
       
       - name: Notify rollback
         run: |
-          echo "🔄 Rollback completed"
+          echo " Rollback completed"

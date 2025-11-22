@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const UserSeeder = require('./seeders/UserSeeder');
+const { seedFeatureFlags, clearFeatureFlags } = require('./seeders/FeatureFlagSeeder');
 
 /**
  * Gestionnaire principal de seeding
@@ -40,6 +41,11 @@ class SeederRunner {
         console.log('─'.repeat(50));
         await seeder.seed();
       }
+      
+      // Seed feature flags
+      console.log(`\n▶️  Exécution: Feature Flags Seeder`);
+      console.log('─'.repeat(50));
+      await seedFeatureFlags();
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -72,6 +78,11 @@ class SeederRunner {
         console.log('─'.repeat(50));
         await seeder.clear();
       }
+      
+      // Clear feature flags
+      console.log(`\n▶️  Nettoyage: Feature Flags`);
+      console.log('─'.repeat(50));
+      await clearFeatureFlags();
 
       console.log('\n╔════════════════════════════════════════╗');
       console.log('║   ✅ NETTOYAGE TERMINÉ                ║');
