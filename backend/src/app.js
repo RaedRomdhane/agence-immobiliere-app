@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
@@ -13,6 +14,8 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const featureFlagRoutes = require('./routes/featureFlagRoutes');
 const propertyRoutes = require('./routes/propertyRoutes');
+const propertyHistoryRoutes = require('./routes/propertyHistoryRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 const logger = require('./config/logger');
 const { metricsMiddleware, register } = require('../metrics');
@@ -68,6 +71,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'votre-secret-session-super-securise',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI, // Use your MongoDB connection string
+    collectionName: 'sessions',
+  }),
   cookie: {
     secure: process.env.NODE_ENV === 'production', // HTTPS en production
     maxAge: 24 * 60 * 60 * 1000, // 24 heures
@@ -142,7 +149,9 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/properties', propertyRoutes);
+app.use('/api/properties', propertyHistoryRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Admin routes protected by feature flag (can be toggled on/off)
 app.use('/api/admin', requireFeatureFlag('admin-panel'), adminRoutes);
 // Route générale en dernier (ne pas mettre /api car déjà dans les routes ci-dessus)
@@ -165,8 +174,11 @@ app.use((err, req, res, _next) => {
   });
 });
 
-app.listen(5000, '0.0.0.0', () => {
-  console.log('Server is running on http://0.0.0.0:5000');
-});
+
+if (require.main === module) {
+  app.listen(5000, '0.0.0.0', () => {
+    console.log('Server is running on http://0.0.0.0:5000');
+  });
+}
 
 module.exports = app;
