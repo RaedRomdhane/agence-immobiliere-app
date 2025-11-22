@@ -9,6 +9,8 @@ interface PhotoUploaderProps {
   onPhotosChange: (photos: File[]) => void;
   maxPhotos?: number;
   error?: string;
+  existingPhotoUrls?: string[]; // New: URLs of existing images (edit mode)
+  onRemoveExistingPhotoUrl?: (url: string) => void; // New: remove handler for existing images
 }
 
 function PhotoUploader({
@@ -16,6 +18,8 @@ function PhotoUploader({
   onPhotosChange,
   maxPhotos = 10,
   error,
+  existingPhotoUrls = [],
+  onRemoveExistingPhotoUrl,
 }: PhotoUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -126,6 +130,9 @@ function PhotoUploader({
     fileInputRef.current?.click();
   };
 
+  // Total count for display/limit
+  const totalPhotosCount = (existingPhotoUrls?.length || 0) + photos.length;
+
   return (
     <div className="space-y-4">
       {/* Zone de drop */}
@@ -176,7 +183,7 @@ function PhotoUploader({
           </p>
 
           <p className="text-sm font-medium text-gray-600">
-            {photos.length} / {maxPhotos} photos ajoutées
+            {totalPhotosCount} / {maxPhotos} photos ajoutées
           </p>
         </div>
       </div>
@@ -194,22 +201,22 @@ function PhotoUploader({
       )}
 
 
-      {/* Prévisualisation des photos */}
-      {previewUrls.length > 0 && (
+      {/* Prévisualisation des photos (existantes + nouvelles) */}
+      {(existingPhotoUrls.length > 0 || previewUrls.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {previewUrls.map((url, index) => (
+          {/* Existing images (URLs) */}
+          {existingPhotoUrls.map((url, index) => (
             <div
-              key={index}
+              key={url}
               className="relative group rounded-lg overflow-hidden border-2 border-gray-300"
               style={{
                 aspectRatio: '1/1',
                 backgroundColor: '#ffffff'
               }}
             >
-              {/* Image */}
               <img
                 src={url}
-                alt={`Photo ${index + 1}`}
+                alt={`Photo existante ${index + 1}`}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -218,47 +225,77 @@ function PhotoUploader({
                   position: 'relative',
                   zIndex: 1
                 }}
-                onLoad={(e) => {
-                  console.log(`✅ Image ${index + 1} affichée avec succès`);
-                  const img = e.currentTarget;
-                  console.log(`Dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
-                  console.log(`Source URL: ${url.substring(0, 50)}...`);
-                }}
-                onError={(e) => {
-                  console.error(`❌ Erreur chargement image ${index + 1}`);
-                  console.error(`Source URL problématique: ${url.substring(0, 100)}`);
-                }}
               />
-
-              {/* Badge "Principale" pour la première photo */}
-              {index === 0 && (
-                <div 
-                  className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium"
-                  style={{ zIndex: 10 }}
-                >
-                  Principale
-                </div>
+              {/* Badge "Principale" for first image overall */}
+              {index === 0 && previewUrls.length === 0 && (
+                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium" style={{ zIndex: 10 }}>Principale</div>
               )}
-
-              {/* Bouton de suppression */}
-              <button
-                type="button"
-                onClick={() => removePhoto(index)}
-                className="
-                  absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full
-                  opacity-0 group-hover:opacity-100 transition-opacity
-                  hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500
-                "
-                style={{ zIndex: 10 }}
-                aria-label={`Supprimer la photo ${index + 1}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {/* Remove button for existing image */}
+              {onRemoveExistingPhotoUrl && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveExistingPhotoUrl(url)}
+                  className="
+                    absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full
+                    opacity-0 group-hover:opacity-100 transition-opacity
+                    hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500
+                  "
+                  style={{ zIndex: 10 }}
+                  aria-label={`Supprimer la photo existante ${index + 1}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
-
-          {/* Bouton pour ajouter plus de photos */}
-          {photos.length < maxPhotos && (
+          {/* New uploads (previews) */}
+          {previewUrls.map((url, i) => {
+            // Index for badge: offset by existingPhotoUrls.length
+            const globalIndex = existingPhotoUrls.length + i;
+            return (
+              <div
+                key={url}
+                className="relative group rounded-lg overflow-hidden border-2 border-gray-300"
+                style={{
+                  aspectRatio: '1/1',
+                  backgroundColor: '#ffffff'
+                }}
+              >
+                <img
+                  src={url}
+                  alt={`Photo ${globalIndex + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    position: 'relative',
+                    zIndex: 1
+                  }}
+                />
+                {/* Badge "Principale" for very first image overall */}
+                {globalIndex === 0 && (
+                  <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium" style={{ zIndex: 10 }}>Principale</div>
+                )}
+                {/* Remove button for new upload */}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  className="
+                    absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full
+                    opacity-0 group-hover:opacity-100 transition-opacity
+                    hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500
+                  "
+                  style={{ zIndex: 10 }}
+                  aria-label={`Supprimer la photo ${globalIndex + 1}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+          {/* Add button if not at max */}
+          {totalPhotosCount < maxPhotos && (
             <button
               type="button"
               onClick={openFileDialog}

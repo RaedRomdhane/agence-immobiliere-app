@@ -1,3 +1,52 @@
+// Update property by ID
+// Update property by ID
+export const updateProperty = async (id: string, data: any, token: string) => {
+  try {
+    const formData = new FormData();
+    
+    // Ajouter les champs simples
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('type', data.type);
+    formData.append('transactionType', data.transactionType);
+    formData.append('price', data.price.toString());
+    formData.append('surface', data.surface.toString());
+
+    // Ajouter les champs optionnels seulement s'ils existent
+    if (data.rooms !== undefined) formData.append('rooms', data.rooms.toString());
+    if (data.bedrooms !== undefined) formData.append('bedrooms', data.bedrooms.toString());
+    if (data.bathrooms !== undefined) formData.append('bathrooms', data.bathrooms.toString());
+    if (data.floor !== undefined) formData.append('floor', data.floor.toString());
+
+    // Ajouter la localisation et les caractéristiques en JSON
+    formData.append('location', JSON.stringify(data.location));
+    formData.append('features', JSON.stringify(data.features));
+
+    // Ajouter les photos existantes si elles existent
+    if (data.existingPhotos && data.existingPhotos.length > 0) {
+      formData.append('existingPhotos', JSON.stringify(data.existingPhotos));
+    }
+
+    // Ajouter les nouvelles photos
+    if (data.photos && data.photos.length > 0) {
+      data.photos.forEach((file: File) => {
+        formData.append('photos', file);
+      });
+    }
+
+    const response = await axios.put(`${API_URL}/properties/${id}`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error.response?.data?.message || 'Erreur lors de la modification du bien'
+    );
+  }
+};
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';

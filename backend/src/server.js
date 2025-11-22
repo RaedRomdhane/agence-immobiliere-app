@@ -29,6 +29,22 @@ const startServer = async () => {
       console.log('========================================');
     });
 
+    // --- SOCKET.IO SETUP ---
+    const { Server } = require('socket.io');
+    const io = new Server(server, {
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+      }
+    });
+    app.set('io', io); // Make io accessible in routes/controllers
+    io.on('connection', (socket) => {
+      console.log('🟢 Client connecté via Socket.IO:', socket.id);
+      socket.on('disconnect', () => {
+        console.log('🔴 Client déconnecté:', socket.id);
+      });
+    });
+
     return server;
   } catch (error) {
     console.error('❌ Échec du démarrage du serveur:', error.message);
