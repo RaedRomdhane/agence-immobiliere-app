@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <main className="pt-16">
         {/* Admin Header */}
-        <section className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white py-12 shadow-2xl">
+        <section className="bg-gradient-to-r from-blue-700 via-blue-800 to-gray-900 text-white py-12 shadow-2xl">
           <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
                     Tableau de bord Administrateur
                   </h1>
                 </div>
-                <p className="text-red-100 text-lg">
+                <p className="text-blue-100 text-lg">
                   Bienvenue, {user?.firstName || 'Admin'} - Gestion de la plateforme
                 </p>
               </div>
@@ -247,12 +247,14 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Feature Flags Management */}
-        <section className="py-12">
-          <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
-            <FeatureFlagsManager />
-          </div>
-        </section>
+        {/* Feature Flags Management (disabled for now) */}
+        {false && (
+          <section className="py-12">
+            <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
+              <FeatureFlagsManager />
+            </div>
+          </section>
+        )}
 
         {/* Recent Activities */}
         <section className="py-12 bg-gray-800/50">

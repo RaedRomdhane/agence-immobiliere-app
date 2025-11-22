@@ -1,4 +1,6 @@
-'use client';
+
+"use client";
+import type { Property } from '@/lib/api/properties';
 
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -6,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import PhotoUploader from './PhotoUploader';
-import { createProperty, PropertyFormData } from '@/lib/api/properties';
+import { createProperty, PropertyFormData, updateProperty } from '@/lib/api/properties';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 // Schéma de validation Zod
@@ -90,38 +92,116 @@ const propertySchema = z.object({
 
 type PropertyFormValues = z.infer<typeof propertySchema>;
 
-export default function PropertyForm() {
+
+
+interface PropertyFormProps {
+  property?: Property;
+  mode?: 'edit' | 'create';
+}
+
+export default function PropertyForm({ property, mode = 'create' }: PropertyFormProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [photos, setPhotos] = useState<File[]>([]);
+  // New: state for existing photo URLs (edit mode)
+  // Store existing photos as objects (with url, filename, isPrimary)
+  const [existingPhotos, setExistingPhotos] = useState<{ url: string; filename?: string; isPrimary?: boolean }[]>([]);
   const [photoError, setPhotoError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
   const photosSectionRef = React.useRef<HTMLDivElement>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm<PropertyFormValues>({
-    resolver: zodResolver(propertySchema),
-    mode: 'onChange', // Validation en temps réel pendant la saisie
-    defaultValues: {
-      features: {
-        parking: false,
-        garden: false,
-        pool: false,
-        elevator: false,
-        balcony: false,
-        terrace: false,
-        furnished: false,
-        airConditioning: false,
-        heating: false,
-        securitySystem: false,
-      },
+
+  // Map property to form values for edit mode
+  function mapPropertyToFormValues(property: Property): PropertyFormValues {
+  return {
+    title: property.title || '',
+    description: property.description || '',
+    type: property.type || '',
+    transactionType: property.transactionType || 'vente',
+    price: property.price || 0,
+    surface: property.surface || 0,
+    rooms: property.rooms ?? 0, // Utilise ?? pour gérer 0 correctement
+    bedrooms: property.bedrooms ?? 0,
+    bathrooms: property.bathrooms ?? 0,
+    floor: property.floor ?? 0,
+    location: {
+      address: property.location?.address || '',
+      city: property.location?.city || '',
+      region: property.location?.region || '',
+      zipCode: property.location?.zipCode || '',
     },
-  });
+    features: {
+      parking: property.features?.parking ?? false,
+      garden: property.features?.garden ?? false,
+      pool: property.features?.pool ?? false,
+      elevator: property.features?.elevator ?? false,
+      balcony: property.features?.balcony ?? false,
+      terrace: property.features?.terrace ?? false,
+      furnished: property.features?.furnished ?? false,
+      airConditioning: property.features?.airConditioning ?? false,
+      heating: property.features?.heating ?? false,
+      securitySystem: property.features?.securitySystem ?? false,
+    },
+  };
+}
+
+  // Dans PropertyForm, modifiez les valeurs par défaut pour les champs optionnels
+const {
+  register,
+  handleSubmit,
+  formState: { errors },
+  watch,
+  reset,
+} = useForm<PropertyFormValues>({
+  resolver: zodResolver(propertySchema),
+  mode: 'onChange',
+  defaultValues: property ? mapPropertyToFormValues(property) : {
+    rooms: 0,
+    bedrooms: 0,
+    bathrooms: 0,
+    floor: 0,
+    features: {
+      parking: false,
+      garden: false,
+      pool: false,
+      elevator: false,
+      balcony: false,
+      terrace: false,
+      furnished: false,
+      airConditioning: false,
+      heating: false,
+      securitySystem: false,
+    },
+  },
+});
+
+  // If property changes (edit mode), reset form values and set existing photos
+  // Helper: prepend backend base URL if needed
+  function getFullPhotoUrl(url: string) {
+    if (!url) return '';
+    // If already absolute (http/https), return as is
+    if (/^https?:\/\//i.test(url)) return url;
+    // Force backend base URL to match Express static server
+    const backendBase = 'http://localhost:5000';
+    return backendBase.replace(/\/$/, '') + '/' + url.replace(/^\//, '');
+  }
+
+  React.useEffect(() => {
+    if (property) {
+      reset(mapPropertyToFormValues(property));
+      // Set existing photo URLs for display in PhotoUploader (make absolute)
+      if (Array.isArray(property.photos)) {
+        setExistingPhotos(property.photos.map(p => ({
+          url: getFullPhotoUrl(p.url),
+          filename: p.filename,
+          isPrimary: p.isPrimary
+        })));
+      } else {
+        setExistingPhotos([]);
+      }
+    }
+  }, [property, reset]);
 
   const onSubmit = async (data: PropertyFormValues) => {
     try {
@@ -129,27 +209,25 @@ export default function PropertyForm() {
       setSubmitError('');
       setPhotoError('');
 
-      // Validation des photos
-      if (photos.length === 0) {
+      // Validation des photos (must have at least one: existing or new)
+      if (existingPhotos.length + photos.length === 0) {
         const errorMsg = 'Au moins une photo est requise';
-        console.log('🔴 Erreur photo détectée:', errorMsg);
         setPhotoError(errorMsg);
         setIsSubmitting(false);
-        // Scroll vers la section photos
         setTimeout(() => {
           photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
         return;
       }
 
-      if (photos.length > 10) {
+      if (existingPhotos.length + photos.length > 10) {
         setPhotoError('Maximum 10 photos autorisées');
         setIsSubmitting(false);
         photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
 
-      // Vérifier les doublons (même nom et taille de fichier)
+      // Vérifier les doublons (même nom et taille de fichier pour new uploads)
       const photoSignatures = photos.map(photo => `${photo.name}-${photo.size}`);
       const uniqueSignatures = new Set(photoSignatures);
       if (photoSignatures.length !== uniqueSignatures.size) {
@@ -160,26 +238,38 @@ export default function PropertyForm() {
       }
 
       // Préparation des données
-      const propertyData: PropertyFormData = {
+      const propertyData: PropertyFormData & { existingPhotos?: any[] } = {
         ...data,
         photos,
+        existingPhotos: existingPhotos.map(p => {
+          let url = p.url;
+          // Always send only the relative path for existing photos
+          if (url.startsWith('http')) {
+            const idx = url.indexOf('/uploads/');
+            if (idx !== -1) url = url.substring(idx);
+          }
+          return { url, filename: p.filename, isPrimary: p.isPrimary };
+        }),
       };
 
       // Récupération du token
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error('Vous devez être connecté pour créer un bien');
+        throw new Error('Vous devez être connecté pour effectuer cette action');
       }
 
-      // Envoi au backend
-      const response = await createProperty(propertyData, token);
-
-      // Succès - Redirection vers la liste des biens
-      alert('Bien immobilier créé avec succès ! 🎉');
+      if (mode === 'edit' && property && property._id) {
+        // Update property
+        await updateProperty(property._id, propertyData, token);
+        alert('Bien immobilier modifié avec succès ! 🎉');
+      } else {
+        // Create property
+        await createProperty(propertyData, token);
+        alert('Bien immobilier créé avec succès ! 🎉');
+      }
       router.push('/admin/properties');
     } catch (error: any) {
-      console.error('Erreur création bien:', error);
-      setSubmitError(error.message || 'Une erreur est survenue lors de la création du bien');
+      setSubmitError(error.message || 'Une erreur est survenue lors de la soumission du bien');
     } finally {
       setIsSubmitting(false);
     }
@@ -210,7 +300,7 @@ export default function PropertyForm() {
     >
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Ajouter un nouveau bien immobilier
+          {mode === 'edit' ? 'Modifier le bien immobilier' : 'Ajouter un nouveau bien immobilier'}
         </h2>
 
         {/* Erreur globale */}
@@ -527,12 +617,15 @@ export default function PropertyForm() {
 
           <PhotoUploader
             photos={photos}
+            existingPhotoUrls={existingPhotos.map(p => p.url)}
             onPhotosChange={(newPhotos: File[]) => {
               setPhotos(newPhotos);
-              // Clear l'erreur SEULEMENT si l'utilisateur ajoute une photo (pas sur chaque changement)
-              if (photoError && newPhotos.length > 0) {
+              if (photoError && (newPhotos.length > 0 || existingPhotos.length > 0)) {
                 setPhotoError('');
               }
+            }}
+            onRemoveExistingPhotoUrl={(url: string) => {
+              setExistingPhotos(existingPhotos.filter(p => p.url !== url));
             }}
             maxPhotos={10}
             error={photoError}
@@ -554,7 +647,9 @@ export default function PropertyForm() {
             disabled={isSubmitting}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Création en cours...' : 'Créer le bien'}
+            {isSubmitting
+              ? (mode === 'edit' ? 'Modification en cours...' : 'Création en cours...')
+              : (mode === 'edit' ? 'Modifier le bien' : 'Créer le bien')}
           </button>
         </div>
       </div>

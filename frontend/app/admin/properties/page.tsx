@@ -1,14 +1,50 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { getProperties, Property } from '@/lib/api/properties';
-import { Plus, Building2, MapPin, Euro } from 'lucide-react';
+import { Plus, Building2, MapPin, Euro, History as HistoryIcon } from 'lucide-react';
 import Link from 'next/link';
 import PhotoModal from '@/components/admin/PhotoModal';
+import PropertyHistoryModal from '@/components/admin/PropertyHistoryModal';
+import axios from 'axios';
+
+  // Duplicate function removed
+
 
 export default function PropertiesPage() {
+    // State for property history modal
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [propertyHistory, setPropertyHistory] = useState<any[]>([]);
+    const [historyPropertyId, setHistoryPropertyId] = useState<string | null>(null);
+
+    // Fetch property history
+    const openHistoryModal = async (propertyId: string) => {
+      setHistoryOpen(true);
+      setHistoryLoading(true);
+      setPropertyHistory([]);
+      setHistoryPropertyId(propertyId);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}/history`,
+          token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+        );
+        setPropertyHistory(res.data.data || []);
+      } catch (err) {
+        setPropertyHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    const closeHistoryModal = () => {
+      setHistoryOpen(false);
+      setPropertyHistory([]);
+      setHistoryPropertyId(null);
+    };
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
@@ -24,8 +60,9 @@ export default function PropertiesPage() {
     }
   }, [user, authLoading, router]);
 
-  // Chargement des biens
+  // Chargement des biens + écoute temps réel
   useEffect(() => {
+    let socket: Socket | null = null;
     const fetchProperties = async () => {
       try {
         setIsLoading(true);
@@ -40,7 +77,20 @@ export default function PropertiesPage() {
 
     if (user && user.role === 'admin') {
       fetchProperties();
+      // Setup Socket.IO client
+      socket = io(process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || '', {
+        transports: ['websocket'],
+      });
+      socket.on('propertyUpdated', (event) => {
+        // Optionally: check if the updated property is in the current list
+        fetchProperties();
+      });
     }
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
   }, [user]);
 
   // Fonctions pour le modal
@@ -87,25 +137,34 @@ export default function PropertiesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Gestion des biens</h1>
-            <p className="mt-2 text-gray-600">
-              {properties.length} bien{properties.length > 1 ? 's' : ''} immobilier{properties.length > 1 ? 's' : ''}
-            </p>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Retour button */}
+          <div className="mb-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-900 transition-colors shadow border border-gray-300"
+            >
+              <span className="text-lg">←</span> Retour à l'accueil admin
+            </Link>
           </div>
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Gestion des biens</h1>
+              <p className="mt-2 text-gray-600">
+                {properties.length} bien{properties.length > 1 ? 's' : ''} immobilier{properties.length > 1 ? 's' : ''}
+              </p>
+            </div>
 
-          <Link
-            href="/admin/properties/new"
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Ajouter un bien
-          </Link>
-        </div>
+            <Link
+              href="/admin/properties/new"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Ajouter un bien
+            </Link>
+          </div>
 
         {/* Erreur */}
         {error && (
@@ -214,7 +273,7 @@ export default function PropertiesPage() {
 
                   <div className="flex gap-2">
                     <Link
-                      href={`/admin/properties/${property._id}`}
+                      href={`/properties/${property._id}`}
                       className="flex-1 px-4 py-2 text-center border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                     >
                       Voir
@@ -225,6 +284,15 @@ export default function PropertiesPage() {
                     >
                       Modifier
                     </Link>
+                    <button
+                      type="button"
+                      className="flex-1 px-4 py-2 text-center border border-gray-400 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
+                      onClick={() => openHistoryModal(property._id)}
+                      title="Voir l'historique des modifications"
+                    >
+                      <HistoryIcon className="w-4 h-4" />
+                      Historique
+                    </button>
                   </div>
                 </div>
               </div>
@@ -245,6 +313,26 @@ export default function PropertiesPage() {
           propertyTitle={selectedProperty.title}
         />
       )}
+
+      {/* Modal pour voir l'historique des modifications */}
+      <PropertyHistoryModal
+        open={historyOpen}
+        onClose={closeHistoryModal}
+        history={propertyHistory}
+        loading={historyLoading}
+        RetourButton={
+          <button
+            onClick={closeHistoryModal}
+            className="mt-6 px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-900 transition-colors shadow-md border border-gray-300"
+          >
+            ← Retour à la liste
+          </button>
+        }
+        modalClassName="max-w-2xl w-full p-8 rounded-2xl shadow-2xl border border-gray-200 bg-white"
+        headerClassName="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2"
+        contentClassName="min-h-[120px] text-gray-700 text-base"
+        emptyStateClassName="text-gray-500 text-center py-8 text-lg"
+      />
     </div>
   );
 }

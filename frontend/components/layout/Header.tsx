@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Building2, Menu, X, Bell, User, LogOut, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 import Image from 'next/image';
 
 export default function Header() {
@@ -12,6 +13,27 @@ export default function Header() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  // Fetch notifications when dropdown opens
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (notificationsOpen && isAuthenticated) {
+        setLoadingNotifications(true);
+        try {
+          const res = await axios.get('/api/notifications');
+          setNotifications(res.data || []);
+          setUnreadCount((res.data || []).filter((n:any) => !n.read).length);
+        } catch (err) {
+          setNotifications([]);
+        } finally {
+          setLoadingNotifications(false);
+        }
+      }
+    };
+    fetchNotifications();
+  }, [notificationsOpen, isAuthenticated]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -73,10 +95,11 @@ export default function Header() {
                   className="relative p-2 text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   <Bell className="h-5 w-5" />
-                  {/* Notification Badge */}
-                  <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
-                    3
-                  </span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                      {unreadCount}
+                    </span>
+                  )}
                 </button>
                 
                 {/* User Menu */}
@@ -260,66 +283,40 @@ export default function Header() {
             className="fixed inset-0 z-40" 
             onClick={() => setNotificationsOpen(false)}
           ></div>
-          
           {/* Dropdown */}
           <div className="absolute top-16 right-4 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-[500px] overflow-hidden">
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
               <h3 className="text-lg font-bold text-gray-900">Notifications</h3>
-              <p className="text-sm text-gray-600">Vous avez 3 nouvelles notifications</p>
+              <p className="text-sm text-gray-600">
+                {unreadCount > 0
+                  ? `Vous avez ${unreadCount} nouvelle${unreadCount > 1 ? 's' : ''} notification${unreadCount > 1 ? 's' : ''}`
+                  : 'Aucune nouvelle notification'}
+              </p>
             </div>
-            
             <div className="overflow-y-auto max-h-[400px]">
-              {/* Notification 1 */}
-              <div className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-blue-100 p-2 rounded-full flex-shrink-0">
-                    <Bell className="h-4 w-4 text-blue-600" />
+              {loadingNotifications ? (
+                <div className="p-4 text-center text-gray-500">Chargement...</div>
+              ) : notifications.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">Aucune notification</div>
+              ) : (
+                notifications.map((notif, idx) => (
+                  <div
+                    key={notif._id || idx}
+                    className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer flex items-start space-x-3 ${!notif.read ? '' : 'opacity-70'}`}
+                  >
+                    <div className={`p-2 rounded-full flex-shrink-0 ${notif.read ? 'bg-gray-200' : 'bg-blue-100'}`}>
+                      <Bell className={`h-4 w-4 ${notif.read ? 'text-gray-400' : 'text-blue-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{notif.title || 'Notification'}</p>
+                      <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
+                      <p className="text-xs text-gray-400 mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                    </div>
+                    {!notif.read && <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1"></span>}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">Nouveau bien correspondant à vos critères</p>
-                    <p className="text-xs text-gray-600 mt-1">Un appartement à Paris 16ème correspond à votre recherche sauvegardée</p>
-                    <p className="text-xs text-gray-400 mt-1">Il y a 2 heures</p>
-                  </div>
-                  <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1"></span>
-                </div>
-              </div>
-
-              {/* Notification 2 */}
-              <div className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-green-100 p-2 rounded-full flex-shrink-0">
-                    <Bell className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">Visite confirmée</p>
-                    <p className="text-xs text-gray-600 mt-1">Votre visite pour la maison à Lyon est confirmée pour demain 14h</p>
-                    <p className="text-xs text-gray-400 mt-1">Il y a 5 heures</p>
-                  </div>
-                  <span className="w-2 h-2 bg-green-600 rounded-full flex-shrink-0 mt-1"></span>
-                </div>
-              </div>
-
-              {/* Notification 3 */}
-              <div className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-orange-100 p-2 rounded-full flex-shrink-0">
-                    <Bell className="h-4 w-4 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">Nouveau message de l&apos;agent</p>
-                    <p className="text-xs text-gray-600 mt-1">L&apos;agent a répondu à votre question sur la villa à Marseille</p>
-                    <p className="text-xs text-gray-400 mt-1">Hier à 16h30</p>
-                  </div>
-                  <span className="w-2 h-2 bg-orange-600 rounded-full flex-shrink-0 mt-1"></span>
-                </div>
-              </div>
-
-              {/* No more notifications */}
-              <div className="p-4 text-center">
-                <p className="text-sm text-gray-500">Aucune autre notification</p>
-              </div>
+                ))
+              )}
             </div>
-
             <div className="p-3 border-t border-gray-200 bg-gray-50">
               <button className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700">
                 Voir toutes les notifications
