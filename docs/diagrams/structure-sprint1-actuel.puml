@@ -1,0 +1,186 @@
+@startuml Agence-Immobiliere-Sprint1-Metier-Ameliore
+
+' Configuration visuelle simple
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+' ================================================
+' MODÈLES MÉTIER
+' ================================================
+
+package "Modèles" {
+    
+    class Utilisateur {
+        - id: String
+        - prenom: String
+        - nom: String
+        - email: String
+        - telephone: String
+        - motDePasse: String
+        - role: String
+        - estActif: Boolean
+        - dateCreation: Date
+        - dateModification: Date
+        __Méthodes__
+        + comparerMotDePasse(mdp: String): Boolean
+        + estAdmin(): Boolean
+        + estClient(): Boolean
+    }
+}
+
+' ================================================
+' DTOs (Data Transfer Objects)
+' ================================================
+
+package "DTOs" {
+    
+    class DonneesInscription {
+        + prenom: String
+        + nom: String
+        + email: String
+        + telephone: String
+        + motDePasse: String
+        + role: String
+    }
+    
+    class DonneesConnexion {
+        + email: String
+        + motDePasse: String
+    }
+    
+    class ResultatConnexion {
+        + utilisateur: Utilisateur
+        + token: String
+        + refreshToken: String
+    }
+    
+    class DonneesMiseAJour {
+        + prenom: String
+        + nom: String
+        + telephone: String
+        + email: String
+    }
+    
+    class FiltresUtilisateur {
+        + role: String
+        + estActif: Boolean
+        + recherche: String
+        + page: int
+        + limite: int
+    }
+    
+    class ProfilGoogle {
+        + googleId: String
+        + email: String
+        + prenom: String
+        + nom: String
+        + avatar: String
+    }
+    
+    class DemandeResetMotDePasse {
+        + token: String
+        + nouveauMotDePasse: String
+    }
+}
+
+' ================================================
+' SERVICES MÉTIER
+' ================================================
+
+package "Services" {
+    
+    class ServiceUtilisateur {
+        __Gestion des utilisateurs__
+        + creerUtilisateur(donnees: DonneesInscription): Utilisateur
+        + obtenirUtilisateurParId(id: String): Utilisateur
+        + obtenirUtilisateurParEmail(email: String): Utilisateur
+        + obtenirTousUtilisateurs(filtres: FiltresUtilisateur): Utilisateur[]
+        + mettreAJourUtilisateur(id: String, donnees: DonneesMiseAJour): Utilisateur
+        + supprimerUtilisateur(id: String): void
+        + changerRoleUtilisateur(id: String, role: String): Boolean
+        + basculerStatut(id: String): Boolean
+    }
+    
+    class ServiceAuthentification {
+        __Authentification et sécurité__
+        + inscrire(donnees: DonneesInscription): Utilisateur
+        + connecter(donnees: DonneesConnexion): ResultatConnexion
+        + deconnecter(token: String): void
+        + authentifierGoogle(profil: ProfilGoogle): Utilisateur
+        + motDePasseOublie(email: String): void
+        + reinitialiserMotDePasse(demande: DemandeResetMotDePasse): Boolean
+        + verifierToken(token: String): Boolean
+        + genererToken(user: Utilisateur): String
+        + rafraichirToken(ancienToken: String): String
+    }
+    
+    class ServiceNotification {
+        __Notifications et communications__
+        + envoyerEmailBienvenue(user: Utilisateur): void
+        + envoyerEmailResetMotDePasse(user: Utilisateur, token: String): void
+        + envoyerEmailConfirmation(user: Utilisateur): void
+        + envoyerNotification(destinataire: String, sujet: String, contenu: String): void
+    }
+}
+
+' ================================================
+' ASSOCIATIONS
+' ================================================
+
+' Services -> Modèles
+ServiceUtilisateur "1" --> "0..*" Utilisateur : gère
+ServiceAuthentification --> Utilisateur : crée/authentifie
+
+' Services -> Services
+ServiceAuthentification --> ServiceUtilisateur : utilise
+ServiceAuthentification --> ServiceNotification : utilise
+
+' Services -> DTOs (utilisation)
+ServiceAuthentification ..> DonneesInscription : utilise
+ServiceAuthentification ..> DonneesConnexion : utilise
+ServiceAuthentification ..> ResultatConnexion : retourne
+ServiceAuthentification ..> ProfilGoogle : utilise
+ServiceAuthentification ..> DemandeResetMotDePasse : utilise
+
+ServiceUtilisateur ..> DonneesInscription : utilise
+ServiceUtilisateur ..> DonneesMiseAJour : utilise
+ServiceUtilisateur ..> FiltresUtilisateur : utilise
+
+' DTOs -> Modèles (composition)
+ResultatConnexion "1" *-- "1" Utilisateur : contient
+
+' Notes explicatives
+note right of ServiceAuthentification
+  Responsabilités:
+  - Inscription et connexion
+  - Gestion des tokens JWT
+  - OAuth (Google)
+  - Réinitialisation mot de passe
+end note
+
+note right of ServiceUtilisateur
+  Responsabilités:
+  - CRUD utilisateurs
+  - Gestion des rôles
+  - Gestion du statut actif/inactif
+end note
+
+note right of ServiceNotification
+  Responsabilités:
+  - Envoi d'emails
+  - Notifications système
+  - (Évolutif: SMS, Push, etc.)
+end note
+
+note top of DTOs
+  <b>DTOs (Data Transfer Objects)</b>
+  Objets de transfert de données typés
+  pour éviter "Object" et clarifier
+  les structures de données attendues
+end note
+
+@enduml

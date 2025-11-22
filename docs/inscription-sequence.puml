@@ -1,0 +1,66 @@
+@startuml
+title Diagramme de Séquence : Inscription (Email/Mot de passe + Google OAuth)
+
+actor "Utilisateur" as User
+participant "Frontend\n(Next.js)" as Frontend
+participant "API Auth\n(Backend Express)" as Backend
+participant "Google OAuth" as Google
+database "MongoDB\n(Users)" as DB
+participant "AuthProvider\n(localStorage)" as AuthProvider
+
+== Inscription par Email/Mot de passe ==
+User -> Frontend : Soumet le formulaire d'inscription\n(prénom, nom, email, mot de passe...)
+Frontend -> Backend : POST /api/auth/register\n{ firstName, lastName, email, password... }
+activate Backend
+Backend -> DB : Vérifier si email existe déjà
+activate DB
+DB --> Backend : Utilisateur existant / null
+deactivate DB
+alt Email non utilisé
+  Backend -> Backend : Hasher le mot de passe (bcrypt)
+  Backend -> Backend : Créer nouvel utilisateur
+  Backend -> Backend : Générer token JWT
+  Backend --> Frontend : 201 Created\n{ token, user }
+  deactivate Backend
+  Frontend -> AuthProvider : Sauvegarder token et user\n(localStorage)
+  Frontend -> User : Redirection vers "/"\navec paramètre ?registered=true
+  Frontend -> User : Afficher message de succès\n"Inscription réussie !"
+else Email déjà utilisé
+  Backend --> Frontend : 409 Conflict\n{ message: "Email déjà utilisé" }
+  deactivate Backend
+  Frontend -> User : Afficher alerte d'erreur\n"Email déjà utilisé"
+end
+
+== Inscription via Google OAuth ==
+User -> Frontend : Clic sur "S'inscrire avec Google"
+Frontend -> Google : Redirection vers consentement Google\n(GET /auth/google?signup=true)
+activate Google
+Google --> User : Popup de connexion Google\n(choix du compte)
+User -> Google : Choisir compte et accepter
+Google --> Backend : Redirection callback avec code\n(/api/auth/google/callback?code=...&signup=true)
+deactivate Google
+activate Backend
+Backend -> Google : Échanger code contre profil Google\n(id, email, nom, photo)
+activate Google
+Google --> Backend : Profil Google
+deactivate Google
+Backend -> DB : Vérifier si utilisateur existe\n(par googleId ou email)
+activate DB
+DB --> Backend : Utilisateur existant / null
+deactivate DB
+alt Utilisateur existe déjà
+  Backend --> Frontend : Redirection vers login avec message\n(/login?error=Compte%20déjà%20existant)
+  deactivate Backend
+  Frontend -> User : Afficher message\n"Compte déjà existant. Connectez-vous."
+else Utilisateur n'existe pas
+  Backend -> Backend : Créer nouvel utilisateur\navec googleId et profil
+  Backend -> Backend : Marquer email comme vérifié\n(isEmailVerified = true)
+  Backend -> Backend : Générer token JWT
+  Backend --> Frontend : Redirection vers callback frontend\navec token (/auth/callback?token=...)
+  deactivate Backend
+  Frontend -> AuthProvider : Sauvegarder token et user
+  Frontend -> User : Redirection vers "/" (tableau de bord)
+  Frontend -> User : Afficher message de succès\n"Bienvenue !"
+end
+
+@enduml

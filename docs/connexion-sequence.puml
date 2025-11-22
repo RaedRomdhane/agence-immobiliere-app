@@ -1,0 +1,61 @@
+@startuml
+title Diagramme de Séquence : Connexion (Email/Mot de passe + Google OAuth)
+
+actor "Utilisateur" as User
+participant "Frontend\n(Next.js)" as Frontend
+participant "API Auth\n(Backend Express)" as Backend
+participant "Google OAuth" as Google
+database "MongoDB\n(Users)" as DB
+participant "AuthProvider\n(localStorage)" as AuthProvider
+
+== Connexion par Email/Mot de passe ==
+User -> Frontend : Soumet le formulaire de connexion\n(email, mot de passe)
+Frontend -> Backend : POST /api/auth/login\n{ email, password }
+activate Backend
+Backend -> DB : Chercher utilisateur par email
+activate DB
+DB --> Backend : Enregistrement utilisateur\n(avec mot de passe hashé) / null
+deactivate DB
+alt Utilisateur trouvé et mot de passe correct
+  Backend -> Backend : Vérifier mot de passe (bcrypt)
+  Backend -> Backend : Générer token JWT
+  Backend --> Frontend : 200 OK\n{ token, user }
+  deactivate Backend
+  Frontend -> AuthProvider : Sauvegarder token et user\n(localStorage)
+  Frontend -> User : Redirection vers "/" (tableau de bord)
+else Identifiants invalides
+  Backend --> Frontend : 401 Unauthorized\n{ message: "Identifiants invalides" }
+  deactivate Backend
+  Frontend -> User : Afficher alerte d'erreur\n"Identifiants invalides"
+end
+
+== Connexion via Google OAuth ==
+User -> Frontend : Clic sur "Se connecter avec Google"
+Frontend -> Google : Redirection vers consentement Google\n(GET /auth/google)
+activate Google
+Google --> User : Popup de connexion Google\n(choix du compte)
+User -> Google : Choisir compte et accepter
+Google --> Backend : Redirection callback avec code\n(/api/auth/google/callback?code=...)
+deactivate Google
+activate Backend
+Backend -> Google : Échanger code contre profil Google\n(id, email, nom, photo)
+activate Google
+Google --> Backend : Profil Google
+deactivate Google
+Backend -> DB : Chercher utilisateur par googleId ou email
+activate DB
+DB --> Backend : Enregistrement utilisateur / null
+deactivate DB
+alt Utilisateur existe
+  Backend -> Backend : Créer token JWT
+  Backend --> Frontend : Redirection vers callback frontend\navec token (/auth/callback?token=...)
+  deactivate Backend
+  Frontend -> AuthProvider : Sauvegarder token et user
+  Frontend -> User : Redirection vers "/" (tableau de bord)
+else Utilisateur NON trouvé
+  Backend --> Frontend : Redirection vers login avec erreur\n(/login?error=Aucun%20compte%20trouvé...)
+  deactivate Backend
+  Frontend -> User : Afficher alerte d'erreur\n"❌ Aucun compte trouvé avec ce compte Google.\n👉 Veuillez vous inscrire d'abord..."
+end
+
+@enduml
