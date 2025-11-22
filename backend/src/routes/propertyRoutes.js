@@ -1,3 +1,4 @@
+// ...existing code...
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -6,6 +7,56 @@ const fs = require('fs');
 const { body } = require('express-validator');
 const propertyController = require('../controllers/propertyController');
 const { protect, restrictTo } = require('../middlewares/auth');
+/**
+ * @route   POST /api/properties/:id/favorite
+ * @desc    Ajouter un bien aux favoris de l'utilisateur connecté
+ * @access  Private (user)
+ */
+router.post(
+  '/:id/favorite',
+  protect,
+  async (req, res) => {
+    const propertyId = req.params.id;
+    const userId = req.user.id;
+    const Property = require('../models/Property');
+    try {
+      const property = await Property.findById(propertyId);
+      if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
+      if (!property.favorites.includes(userId)) {
+        property.favorites.push(userId);
+        await property.save();
+      }
+      res.json({ success: true, message: 'Ajouté aux favoris' });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Erreur ajout favori', error: err.message });
+    }
+  }
+);
+
+/**
+ * @route   DELETE /api/properties/:id/favorite
+ * @desc    Retirer un bien des favoris de l'utilisateur connecté
+ * @access  Private (user)
+ */
+router.delete(
+  '/:id/favorite',
+  protect,
+  async (req, res) => {
+    const propertyId = req.params.id;
+    const userId = req.user.id;
+    const Property = require('../models/Property');
+    try {
+      const property = await Property.findById(propertyId);
+      if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
+      property.favorites = property.favorites.filter(favId => favId.toString() !== userId);
+      await property.save();
+      res.json({ success: true, message: 'Retiré des favoris' });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Erreur suppression favori', error: err.message });
+    }
+  }
+);
+
 
 // Configuration du stockage Multer
 const storage = multer.diskStorage({

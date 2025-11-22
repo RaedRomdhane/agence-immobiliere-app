@@ -1,7 +1,14 @@
-const mongoose = require('mongoose');
-const QRCode = require('qrcode');
 
+  const mongoose = require('mongoose');
+  const QRCode = require('qrcode');
+
+  // ...existing code...
 const propertySchema = new mongoose.Schema({
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }],
   title: {
     type: String,
     required: [true, 'Le titre est requis'],

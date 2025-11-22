@@ -1,4 +1,6 @@
 const Property = require('../models/Property');
+const { logPropertyHistory } = require('../utils/logPropertyHistory');
+const { validationResult } = require('express-validator');
 /**
  * @desc    Modifier un bien immobilier
  * @route   PUT /api/properties/:id
@@ -8,6 +10,9 @@ exports.updateProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
+
+    // Capture old values for history
+    const oldValues = property.toObject();
 
     // Update fields - toujours mettre à jour même si les valeurs sont les mêmes
     property.title = req.body.title || property.title;
@@ -77,6 +82,37 @@ exports.updateProperty = async (req, res) => {
     property.photos = allPhotos;
 
     await property.save();
+
+    // Log modification history
+    await logPropertyHistory({
+      propertyId: property._id,
+      changedBy: req.user.id,
+      changes: {
+        before: oldValues,
+        after: property.toObject(),
+      },
+    });
+
+    // Notify users who have favorited this property
+    const Notification = require('../models/Notification');
+    if (Array.isArray(property.favorites) && property.favorites.length > 0) {
+      const notifications = property.favorites.map(userId => ({
+        user: userId,
+        property: property._id,
+        type: 'property_update',
+        message: `Le bien "${property.title}" que vous avez mis en favori a été modifié.`,
+      }));
+      await Notification.insertMany(notifications);
+    }
+
+    // Emit real-time update event via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('propertyUpdated', {
+        propertyId: property._id,
+        data: property.toObject(),
+      });
+    }
 
     res.status(200).json({ 
       success: true, 
