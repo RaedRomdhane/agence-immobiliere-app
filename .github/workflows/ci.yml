@@ -109,6 +109,9 @@ jobs:
         working-directory: ./backend
         run: npm ci --production
 
+      - name: Set test MongoDB URI
+        run: echo "MONGODB_URI=mongodb://localhost:27017/test-db" >> $GITHUB_ENV
+
       - name: Vérification de la structure du projet
         run: |
           echo "Vérification de la structure du projet..."
