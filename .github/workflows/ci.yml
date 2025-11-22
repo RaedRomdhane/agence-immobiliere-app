@@ -61,6 +61,9 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
+      - name: Set test MongoDB URI
+        run: echo "MONGODB_URI=mongodb://localhost:27017/test-db" >> $GITHUB_ENV
+
       - name: Exécution des tests unitaires
         working-directory: ./backend
         run: npm run test:ci
