@@ -115,4 +115,17 @@ router.get(
   propertyController.getPropertyById
 );
 
+/**
+ * @route   PUT /api/properties/:id
+ * @desc    Modifier un bien immobilier (Admin uniquement)
+ * @access  Private/Admin
+ */
+router.put(
+  '/:id',
+  protect,
+  restrictTo('admin'),
+  upload.array('photos', 10), // Max 10 photos
+  propertyController.updateProperty
+);
+
 module.exports = router;

@@ -165,4 +165,8 @@ app.use((err, req, res, _next) => {
   });
 });
 
+app.listen(5000, '0.0.0.0', () => {
+  console.log('Server is running on http://0.0.0.0:5000');
+});
+
 module.exports = app;

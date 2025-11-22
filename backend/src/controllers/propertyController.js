@@ -1,6 +1,97 @@
 const Property = require('../models/Property');
-const { validationResult } = require('express-validator');
+/**
+ * @desc    Modifier un bien immobilier
+ * @route   PUT /api/properties/:id
+ * @access  Private/Admin
+ */
+exports.updateProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
 
+    // Update fields - toujours mettre à jour même si les valeurs sont les mêmes
+    property.title = req.body.title || property.title;
+    property.description = req.body.description || property.description;
+    property.type = req.body.type || property.type;
+    property.price = req.body.price ? Number(req.body.price) : property.price;
+    property.surface = req.body.surface ? Number(req.body.surface) : property.surface;
+    property.transactionType = req.body.transactionType || property.transactionType;
+    
+    // Gestion des champs optionnels - permettre la valeur 0
+    property.rooms = req.body.rooms !== undefined ? Number(req.body.rooms) : property.rooms;
+    property.bedrooms = req.body.bedrooms !== undefined ? Number(req.body.bedrooms) : property.bedrooms;
+    property.bathrooms = req.body.bathrooms !== undefined ? Number(req.body.bathrooms) : property.bathrooms;
+    property.floor = req.body.floor !== undefined ? Number(req.body.floor) : property.floor;
+
+    // Parse location/features si envoyés comme string JSON
+    if (req.body.location) {
+      try {
+        property.location = typeof req.body.location === 'string' 
+          ? JSON.parse(req.body.location) 
+          : req.body.location;
+      } catch (e) {
+        console.error('Erreur parsing location:', e);
+      }
+    }
+
+    if (req.body.features) {
+      try {
+        property.features = typeof req.body.features === 'string'
+          ? JSON.parse(req.body.features)
+          : req.body.features;
+      } catch (e) {
+        console.error('Erreur parsing features:', e);
+      }
+    }
+
+    property.updatedBy = req.user.id;
+
+    // Gestion des photos existantes et nouvelles
+    let existingPhotos = [];
+    if (req.body.existingPhotos) {
+      try {
+        existingPhotos = typeof req.body.existingPhotos === 'string' 
+          ? JSON.parse(req.body.existingPhotos) 
+          : req.body.existingPhotos;
+      } catch (e) { 
+        console.error('Erreur parsing existingPhotos:', e);
+        existingPhotos = [];
+      }
+    }
+
+    let newPhotos = [];
+    if (req.files && req.files.length > 0) {
+      newPhotos = req.files.map((file, index) => ({
+        url: `/uploads/properties/${file.filename}`,
+        filename: file.filename,
+        isPrimary: false // sera défini ci-dessous
+      }));
+    }
+
+    // Combiner les photos existantes et nouvelles, limiter à 10, définir la première comme principale
+    const allPhotos = [...existingPhotos, ...newPhotos].slice(0, 10).map((p, i) => ({ 
+      ...p, 
+      isPrimary: i === 0 
+    }));
+    
+    property.photos = allPhotos;
+
+    await property.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Bien immobilier modifié', 
+      data: property 
+    });
+  } catch (error) {
+    console.error('Erreur modification bien:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la modification du bien', 
+      error: error.message 
+    });
+  }
+};
 /**
  * @desc    Créer un nouveau bien immobilier
  * @route   POST /api/properties
