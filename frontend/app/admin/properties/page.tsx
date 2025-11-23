@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { getProperties, Property } from '@/lib/api/properties';
-import { Plus, Building2, MapPin, Euro, History as HistoryIcon } from 'lucide-react';
+import { getProperties, Property, archiveProperty, deleteProperty } from '@/lib/api/properties';
+import { Plus, Building2, MapPin, Euro, History as HistoryIcon, Eye, Pencil, Archive as ArchiveIcon, Trash2 as TrashIcon } from 'lucide-react';
 import Link from 'next/link';
 import PhotoModal from '@/components/admin/PhotoModal';
 import PropertyHistoryModal from '@/components/admin/PropertyHistoryModal';
@@ -52,6 +52,13 @@ export default function PropertiesPage() {
   const [error, setError] = useState<string>('');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Archive/Delete modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmType, setConfirmType] = useState<'archive' | 'delete' | null>(null);
+  const [confirmProperty, setConfirmProperty] = useState<Property | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   // Vérification de l'authentification
   useEffect(() => {
@@ -121,6 +128,45 @@ export default function PropertiesPage() {
       setCurrentPhotoIndex((prev) =>
         prev === 0 ? selectedProperty.photos.length - 1 : prev - 1
       );
+    }
+  };
+
+  // Archive property handler
+  const handleArchive = (property: Property) => {
+    setConfirmType('archive');
+    setConfirmProperty(property);
+    setConfirmOpen(true);
+  };
+
+  // Delete property handler
+  const handleDelete = (property: Property) => {
+    setConfirmType('delete');
+    setConfirmProperty(property);
+    setConfirmOpen(true);
+  };
+
+  // Confirm action
+  const confirmAction = async () => {
+    if (!confirmProperty || !confirmType) return;
+    setActionLoading(true);
+    setActionError('');
+    try {
+      const token = localStorage.getItem('token') || '';
+      if (confirmType === 'archive') {
+        await archiveProperty(confirmProperty._id, token);
+      } else {
+        await deleteProperty(confirmProperty._id, token);
+      }
+      setConfirmOpen(false);
+      setConfirmProperty(null);
+      setConfirmType(null);
+      // Refresh list
+      const response = await getProperties({ status: 'disponible', limit: 100 });
+      setProperties(response.data);
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || 'Erreur lors de l’action');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -274,24 +320,41 @@ export default function PropertiesPage() {
                   <div className="flex gap-2">
                     <Link
                       href={`/properties/${property._id}`}
-                      className="flex-1 px-4 py-2 text-center border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                      className="flex-1 px-3 py-2 text-center border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center"
+                      title="Voir"
                     >
-                      Voir
+                      <Eye className="w-5 h-5" />
                     </Link>
                     <Link
                       href={`/admin/properties/${property._id}/edit`}
-                      className="flex-1 px-4 py-2 text-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="flex-1 px-3 py-2 text-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                      title="Modifier"
                     >
-                      Modifier
+                      <Pencil className="w-5 h-5" />
                     </Link>
                     <button
                       type="button"
-                      className="flex-1 px-4 py-2 text-center border border-gray-400 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-2 text-center border border-gray-400 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center"
                       onClick={() => openHistoryModal(property._id)}
-                      title="Voir l'historique des modifications"
+                      title="Historique"
                     >
-                      <HistoryIcon className="w-4 h-4" />
-                      Historique
+                      <HistoryIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 px-3 py-2 text-center border border-yellow-500 text-yellow-700 rounded-lg hover:bg-yellow-50 transition-colors flex items-center justify-center"
+                      onClick={() => handleArchive(property)}
+                      title="Archiver"
+                    >
+                      <ArchiveIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 px-3 py-2 text-center border border-red-500 text-red-700 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center"
+                      onClick={() => handleDelete(property)}
+                      title="Supprimer"
+                    >
+                      <TrashIcon className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -333,6 +396,47 @@ export default function PropertiesPage() {
         contentClassName="min-h-[120px] text-gray-700 text-base"
         emptyStateClassName="text-gray-500 text-center py-8 text-lg"
       />
+
+      {/* Confirmation Modal */}
+      {confirmOpen && confirmProperty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.08)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full relative animate-fade-in">
+            {/* Close Icon */}
+            <button
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
+              onClick={() => setConfirmOpen(false)}
+              aria-label="Fermer"
+            >
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <h2 className="text-2xl font-bold mb-3 text-gray-900">
+              {confirmType === 'archive' ? 'Archiver ce bien ?' : 'Supprimer définitivement ce bien ?'}
+            </h2>
+            <p className="mb-6 text-gray-700 text-base">
+              {confirmType === 'archive'
+                ? 'Le bien sera archivé et ne sera plus visible dans les recherches. Vous pourrez le restaurer plus tard.'
+                : 'Cette action est irréversible. Le bien sera supprimé définitivement.'}
+            </p>
+            {actionError && <div className="text-red-600 mb-2">{actionError}</div>}
+            <div className="flex gap-4 justify-end mt-4">
+              <button
+                className="px-5 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium shadow-sm border border-gray-300 transition-colors"
+                onClick={() => setConfirmOpen(false)}
+                disabled={actionLoading}
+              >
+                Annuler
+              </button>
+              <button
+                className={`px-5 py-2 rounded-lg text-white font-medium shadow-sm border-0 transition-colors ${confirmType === 'archive' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-red-600 hover:bg-red-700'}`}
+                onClick={confirmAction}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'En cours...' : confirmType === 'archive' ? 'Archiver' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

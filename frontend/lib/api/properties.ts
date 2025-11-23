@@ -238,3 +238,20 @@ export const getPropertyById = async (id: string) => {
     );
   }
 };
+
+// Archive property by ID
+export const archiveProperty = async (id: string, token: string) => {
+  return axios.patch(
+    `${API_URL}/properties/${id}/archive`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+};
+
+// Delete property by ID
+export const deleteProperty = async (id: string, token: string) => {
+  return axios.delete(
+    `${API_URL}/properties/${id}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+};
