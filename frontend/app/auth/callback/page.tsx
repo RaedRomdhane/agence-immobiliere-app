@@ -11,8 +11,8 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const token = searchParams.get('token');
-      const error = searchParams.get('error');
+      const token = searchParams?.get('token');
+      const error = searchParams?.get('error');
 
       if (error) {
         // Erreur d'authentification Google
