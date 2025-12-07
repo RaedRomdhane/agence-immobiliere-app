@@ -1,9 +1,20 @@
 
-  const mongoose = require('mongoose');
+const mongoose = require('mongoose');
+
+
+
+
   const QRCode = require('qrcode');
 
   // ...existing code...
 const propertySchema = new mongoose.Schema({
+  reference: {
+    type: String,
+    unique: true,
+    sparse: true, // allow null/undefined for legacy data
+    trim: true,
+    index: true
+  },
   favorites: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -164,6 +175,10 @@ const propertySchema = new mongoose.Schema({
   qrCode: {
     type: String
   },
+  onMap: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
     enum: ['disponible', 'vendu', 'loue', 'archive'],
@@ -201,6 +216,7 @@ propertySchema.virtual('pricePerSquareMeter').get(function() {
 
 // Virtual pour la photo principale
 propertySchema.virtual('primaryPhoto').get(function() {
+  if (!Array.isArray(this.photos)) return undefined;
   const primary = this.photos.find(p => p.isPrimary);
   return primary || this.photos[0];
 });
@@ -234,6 +250,64 @@ propertySchema.pre('save', async function(next) {
 propertySchema.methods.incrementViews = async function() {
   this.views += 1;
   await this.save();
+};
+// Static method to get total revenue for properties sold or rented this month
+propertySchema.statics.getMonthlyRevenue = async function () {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const result = await this.aggregate([
+    {
+      $match: {
+        status: { $in: ['vendu', 'loue'] },
+        updatedAt: { $gte: firstDay, $lte: lastDay },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: '$price' },
+      },
+    },
+  ]);
+  return result[0]?.total || 0;
+};
+// Static method to get revenue for a given month and year
+propertySchema.statics.getRevenueForMonth = async function (year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const result = await this.aggregate([
+    {
+      $match: {
+        status: { $in: ['vendu', 'loue'] },
+        updatedAt: { $gte: firstDay, $lte: lastDay },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: '$price' },
+      },
+    },
+  ]);
+  return result[0]?.total || 0;
+};
+
+// Static method to get both this month's and last month's revenue
+propertySchema.statics.getMonthlyRevenueWithPrevious = async function () {
+  const now = new Date();
+  const thisMonthRevenue = await this.getRevenueForMonth(now.getFullYear(), now.getMonth());
+  // Calculate last month (handle January)
+  let lastMonth, lastMonthYear;
+  if (now.getMonth() === 0) {
+    lastMonth = 11;
+    lastMonthYear = now.getFullYear() - 1;
+  } else {
+    lastMonth = now.getMonth() - 1;
+    lastMonthYear = now.getFullYear();
+  }
+  const lastMonthRevenue = await this.getRevenueForMonth(lastMonthYear, lastMonth);
+  return { thisMonthRevenue, lastMonthRevenue };
 };
 
 const Property = mongoose.model('Property', propertySchema);

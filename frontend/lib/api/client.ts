@@ -29,13 +29,19 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        // Ne rediriger que si on n'est pas déjà sur la page de login
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+        const token = localStorage.getItem('token');
+        
+        // Only redirect if user had a token (was authenticated)
+        // Don't redirect for public pages accessing protected endpoints
+        if (token) {
+          // Token expiré ou invalide
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          // Ne rediriger que si on n'est pas déjà sur la page de login
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
         }
       }
     }

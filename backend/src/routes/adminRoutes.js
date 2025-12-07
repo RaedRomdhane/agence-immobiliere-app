@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { protect } = require('../middlewares/auth');
+const recentActivityController = require('../controllers/recentActivityController');
+const { protect, restrictTo } = require('../middlewares/auth');
 
 /**
  * Routes Admin
@@ -27,5 +28,11 @@ router.put('/users/:id', protect, adminController.updateUser);
 // @desc    Supprimer un utilisateur
 // @access  Private/Admin
 router.delete('/users/:id', protect, adminController.deleteUser);
+
+
+// @route   GET /api/admin/recent-activities
+// @desc    Obtenir les activités récentes pour le dashboard admin
+// @access  Private/Admin
+router.get('/recent-activities', protect, restrictTo('admin'), recentActivityController.getRecentActivities);
 
 module.exports = router;

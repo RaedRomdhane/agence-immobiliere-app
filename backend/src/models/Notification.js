@@ -9,16 +9,20 @@ const notificationSchema = new mongoose.Schema({
   property: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Property',
-    required: true
+    required: false // Now optional for contact notifications
   },
   type: {
     type: String,
-    enum: ['property_update'],
+    enum: ['property_update', 'contact', 'appointment_request', 'appointment_accepted', 'appointment_denied', 'review'],
     default: 'property_update'
   },
   message: {
     type: String,
     required: true
+  },
+  relatedId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false // Optional - can link to review, property, appointment, etc.
   },
   read: {
     type: Boolean,

@@ -82,7 +82,7 @@ const config = {
   upload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 5 * 1024 * 1024, // 5MB par défaut
     uploadPath: process.env.UPLOAD_PATH || './uploads',
-    allowedImageTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    allowedImageTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/svg+xml', 'image/avif'],
     allowedDocumentTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   },
 

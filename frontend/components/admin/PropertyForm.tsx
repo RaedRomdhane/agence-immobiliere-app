@@ -8,8 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import PhotoUploader from './PhotoUploader';
-import { createProperty, PropertyFormData, updateProperty } from '@/lib/api/properties';
+import { createProperty, PropertyFormData, updateProperty, getPropertyById } from '@/lib/api/properties';
+
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useNotificationContext } from '../notifications/NotificationContext';
 
 // Schéma de validation Zod
 // Liste canonique des types de biens (value => label)
@@ -102,6 +104,7 @@ interface PropertyFormProps {
 export default function PropertyForm({ property, mode = 'create' }: PropertyFormProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { refreshNotifications } = useNotificationContext();
   const [photos, setPhotos] = useState<File[]>([]);
   // New: state for existing photo URLs (edit mode)
   // Store existing photos as objects (with url, filename, isPrimary)
@@ -109,6 +112,7 @@ export default function PropertyForm({ property, mode = 'create' }: PropertyForm
   const [photoError, setPhotoError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const photosSectionRef = React.useRef<HTMLDivElement>(null);
 
 
@@ -204,26 +208,31 @@ const {
   }, [property, reset]);
 
   const onSubmit = async (data: PropertyFormValues) => {
+    setIsSubmitting(true);
+    setSubmitError('');
+    setPhotoError('');
+    setSuccessMessage('');
     try {
-      setIsSubmitting(true);
-      setSubmitError('');
-      setPhotoError('');
+      // Debug: log start
+      console.log('[PropertyForm] onSubmit start', { data, existingPhotos, photos });
 
       // Validation des photos (must have at least one: existing or new)
       if (existingPhotos.length + photos.length === 0) {
         const errorMsg = 'Au moins une photo est requise';
         setPhotoError(errorMsg);
-        setIsSubmitting(false);
         setTimeout(() => {
           photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
+        console.warn('[PropertyForm] Submission blocked: no photos');
+        setIsSubmitting(false);
         return;
       }
 
       if (existingPhotos.length + photos.length > 10) {
         setPhotoError('Maximum 10 photos autorisées');
-        setIsSubmitting(false);
         photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        console.warn('[PropertyForm] Submission blocked: too many photos');
+        setIsSubmitting(false);
         return;
       }
 
@@ -232,13 +241,14 @@ const {
       const uniqueSignatures = new Set(photoSignatures);
       if (photoSignatures.length !== uniqueSignatures.size) {
         setPhotoError('Vous avez ajouté la même photo plusieurs fois');
-        setIsSubmitting(false);
         photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        console.warn('[PropertyForm] Submission blocked: duplicate photos');
+        setIsSubmitting(false);
         return;
       }
 
       // Préparation des données
-      const propertyData: PropertyFormData & { existingPhotos?: any[] } = {
+      const propertyData: PropertyFormData & { existingPhotos?: any[]; onMap?: boolean } = {
         ...data,
         photos,
         existingPhotos: existingPhotos.map(p => {
@@ -250,54 +260,100 @@ const {
           }
           return { url, filename: p.filename, isPrimary: p.isPrimary };
         }),
+        // Preserve onMap value and coordinates when editing
+        ...(property && { 
+          onMap: property.onMap,
+          location: {
+            ...data.location,
+            ...(property.location?.coordinates && {
+              coordinates: property.location.coordinates
+            })
+          }
+        })
       };
 
       // Récupération du token
       const token = localStorage.getItem('token');
       if (!token) {
+        console.error('[PropertyForm] No token found in localStorage');
         throw new Error('Vous devez être connecté pour effectuer cette action');
       }
 
       if (mode === 'edit' && property && property._id) {
         // Update property
-        await updateProperty(property._id, propertyData, token);
-        alert('Bien immobilier modifié avec succès ! 🎉');
+        console.log('[PropertyForm] Updating property', { id: property._id, propertyData });
+        try {
+          console.log('[PropertyForm] About to call updateProperty API');
+          await updateProperty(property._id, propertyData, token);
+          console.log('[PropertyForm] updateProperty API call finished');
+          // Refresh notifications after update
+          await refreshNotifications();
+          // Redirect to properties list with success message
+          router.push('/admin/properties?success=1');
+          return;
+        } catch (apiError) {
+          console.error('[PropertyForm] updateProperty API call failed', apiError);
+          throw apiError;
+        }
       } else {
         // Create property
+        console.log('[PropertyForm] Creating property', { propertyData });
         await createProperty(propertyData, token);
-        alert('Bien immobilier créé avec succès ! 🎉');
+        // Refresh notifications after create
+        await refreshNotifications();
+        setSuccessMessage('Bien immobilier créé avec succès ! 🎉');
+        // Redirect to properties list after creation with success param
+        router.push('/admin/properties?success=2');
+        return;
       }
-      router.push('/admin/properties');
+      // Debug: log success
+      console.log('[PropertyForm] onSubmit success');
     } catch (error: any) {
-      setSubmitError(error.message || 'Une erreur est survenue lors de la soumission du bien');
+      // Debug: log error
+      console.error('[PropertyForm] onSubmit error', error);
+      setSubmitError(error?.message || JSON.stringify(error) || 'Une erreur est survenue lors de la soumission du bien');
     } finally {
       setIsSubmitting(false);
+      // Debug: log finally
+      console.log('[PropertyForm] onSubmit finally: isSubmitting set to false');
     }
   };
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit, () => {
-        // onInvalid: show photo error if no photos or duplicates
-        if (photos.length === 0) {
-          setPhotoError('Au moins une photo est requise');
-          setTimeout(() => {
-            photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-          return;
+      onSubmit={handleSubmit(
+        async (data, event) => {
+          await onSubmit(data);
+        },
+        () => {
+          // onInvalid: show photo error if no photos or duplicates
+          if (photos.length === 0) {
+            setPhotoError('Au moins une photo est requise');
+            setTimeout(() => {
+              photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+            setIsSubmitting(false);
+            return;
+          }
+          // Check for duplicates
+          const photoSignatures = photos.map(photo => `${photo.name}-${photo.size}`);
+          const uniqueSignatures = new Set(photoSignatures);
+          if (photoSignatures.length !== uniqueSignatures.size) {
+            setPhotoError('Vous avez ajouté la même photo plusieurs fois');
+            setTimeout(() => {
+              photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+            setIsSubmitting(false);
+          }
         }
-        // Check for duplicates
-        const photoSignatures = photos.map(photo => `${photo.name}-${photo.size}`);
-        const uniqueSignatures = new Set(photoSignatures);
-        if (photoSignatures.length !== uniqueSignatures.size) {
-          setPhotoError('Vous avez ajouté la même photo plusieurs fois');
-          setTimeout(() => {
-            photosSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
-        }
-      })}
+      )}
       className="space-y-8 max-w-4xl mx-auto p-6"
     >
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-700">{successMessage}</p>
+        </div>
+      )}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           {mode === 'edit' ? 'Modifier le bien immobilier' : 'Ajouter un nouveau bien immobilier'}
@@ -325,7 +381,7 @@ const {
               type="text"
               id="title"
               {...register('title')}
-              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.title ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Ex: Bel appartement F3 avec vue mer"
@@ -344,7 +400,7 @@ const {
               id="description"
               rows={5}
               {...register('description')}
-              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.description ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Décrivez le bien en détail..."
@@ -363,7 +419,7 @@ const {
               <select
                 id="type"
                 {...register('type')}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 caret-black cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.type ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -386,7 +442,7 @@ const {
               <select
                 id="transactionType"
                 {...register('transactionType')}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 caret-black cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.transactionType ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -410,7 +466,7 @@ const {
                 type="number"
                 id="price"
                 {...register('price', { valueAsNumber: true })}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.price ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="150000"
@@ -428,7 +484,7 @@ const {
                 type="number"
                 id="surface"
                 {...register('surface', { valueAsNumber: true })}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.surface ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="85"
@@ -449,7 +505,7 @@ const {
                 type="number"
                 id="rooms"
                 {...register('rooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -462,7 +518,7 @@ const {
                 type="number"
                 id="bedrooms"
                 {...register('bedrooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -475,7 +531,7 @@ const {
                 type="number"
                 id="bathrooms"
                 {...register('bathrooms', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -488,7 +544,7 @@ const {
                 type="number"
                 id="floor"
                 {...register('floor', { valueAsNumber: true })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500"
                 placeholder="0"
               />
             </div>
@@ -509,7 +565,7 @@ const {
               type="text"
               id="location.address"
               {...register('location.address')}
-              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.location?.address ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="12 Avenue Habib Bourguiba"
@@ -528,7 +584,7 @@ const {
                 type="text"
                 id="location.city"
                 {...register('location.city')}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.location?.city ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Tunis"
@@ -546,7 +602,7 @@ const {
                 type="text"
                 id="location.region"
                 {...register('location.region')}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.location?.region ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Tunis"
@@ -564,7 +620,7 @@ const {
                 type="text"
                 id="location.zipCode"
                 {...register('location.zipCode')}
-                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-4 py-2 border rounded-lg text-gray-900 placeholder-gray-400 caret-black cursor-text focus:ring-2 focus:ring-blue-500 ${
                   errors.location?.zipCode ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="1000"
@@ -620,12 +676,15 @@ const {
             existingPhotoUrls={existingPhotos.map(p => p.url)}
             onPhotosChange={(newPhotos: File[]) => {
               setPhotos(newPhotos);
+              setIsSubmitting(false);
               if (photoError && (newPhotos.length > 0 || existingPhotos.length > 0)) {
                 setPhotoError('');
+                setIsSubmitting(false);
               }
             }}
             onRemoveExistingPhotoUrl={(url: string) => {
               setExistingPhotos(existingPhotos.filter(p => p.url !== url));
+              setIsSubmitting(false);
             }}
             maxPhotos={10}
             error={photoError}

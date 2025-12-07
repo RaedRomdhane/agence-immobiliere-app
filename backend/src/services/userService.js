@@ -2,10 +2,39 @@
  * Service métier pour la gestion des utilisateurs
  * Contient toute la logique métier liée aux utilisateurs
  */
-const { User } = require('../models');
+const { User, Property } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 class UserService {
+  /**
+   * Récupérer les critères de recherche sauvegardés d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<Object|null>} - Critères sauvegardés ou null
+   */
+  async getLastPropertySearchCriteria(userId) {
+    try {
+      console.log('[userService.getLastPropertySearchCriteria] userId:', userId);
+      const user = await this.getUserById(userId);
+      console.log('[userService.getLastPropertySearchCriteria] user:', user);
+      return user.lastPropertySearchCriteria || null;
+    } catch (err) {
+      console.error('[userService.getLastPropertySearchCriteria] error:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Sauvegarder les critères de recherche d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @param {Object} criteria - Critères à sauvegarder
+   * @returns {Promise<Object>} - Critères sauvegardés
+   */
+  async setLastPropertySearchCriteria(userId, criteria) {
+    const user = await this.getUserById(userId);
+    user.lastPropertySearchCriteria = criteria;
+    await user.save();
+    return user.lastPropertySearchCriteria;
+  }
   /**
    * Créer un nouvel utilisateur
    * @param {Object} userData - Données de l'utilisateur
@@ -184,7 +213,20 @@ class UserService {
    * @returns {Promise<Object>} - Statistiques
    */
   async getUserStats() {
-    return await User.getStats();
+    const stats = await User.getStats();
+    const { thisMonthRevenue, lastMonthRevenue } = await Property.getMonthlyRevenueWithPrevious();
+    let revenueChangePercent = 0;
+    if (lastMonthRevenue > 0) {
+      revenueChangePercent = ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+    } else if (thisMonthRevenue > 0) {
+      revenueChangePercent = 100;
+    }
+    return {
+      ...stats,
+      monthlyRevenue: thisMonthRevenue,
+      lastMonthRevenue,
+      revenueChangePercent,
+    };
   }
 
   /**

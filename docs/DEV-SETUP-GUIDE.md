@@ -107,6 +107,18 @@ npm config set cache ~/.npm
 export NODE_OPTIONS="--max-old-space-size=4096"
 ```
 
+### 3. Stripe CLI (pour le développement local des webhooks)
+
+Pour tester les webhooks Stripe (paiement en ligne) en local, installez le Stripe CLI :
+
+- [Stripe CLI - Installation](https://stripe.com/docs/stripe-cli)
+
+#### Commande à lancer pour recevoir les webhooks Stripe en local :
+
+```bash
+stripe listen --forward-to localhost:5000/api/webhooks/stripe
+
+
 ### 3. MongoDB (Base de données locale)
 
 #### Option A : Installation native (recommandé pour macOS/Linux)

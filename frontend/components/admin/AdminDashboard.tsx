@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import axios from 'axios';
 import { useAuth } from '@/components/auth/AuthProvider';
 import FeatureFlagsManager from './FeatureFlagsManager';
 import { 
@@ -21,32 +22,225 @@ import {
   Activity
 } from 'lucide-react';
 
+
+import { useEffect, useState } from 'react';
+import { userApi } from '@/lib/api/user';
+import { getProperties } from '@/lib/api/properties';
+
+type Stats = {
+  totalUsers: number;
+  newUsersThisMonth: number;
+  totalProperties: number;
+  soldProperties: number;
+  rentedProperties: number;
+  pendingApprovals: number;
+  revenueThisMonth: string;
+  revenueChangePercent: number;
+};
+
 export default function AdminDashboard() {
   const { user } = useAuth();
 
-  // Statistiques administrateur (placeholder data)
-  const stats = {
-    totalUsers: 1247,
-    newUsersThisMonth: 89,
-    totalProperties: 456,
-    pendingApprovals: 12,
-    activeAgents: 34,
-    revenueThisMonth: '45 230 €',
-  };
+  const [stats, setStats] = useState<Stats>({
+    totalUsers: 0,
+    newUsersThisMonth: 0,
+    totalProperties: 0,
+    soldProperties: 0,
+    rentedProperties: 0,
+    pendingApprovals: 0,
+    revenueThisMonth: '0 TND',
+    revenueChangePercent: 0,
+  });
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
+  const [alertsCount, setAlertsCount] = useState<number>(0);
+  const [planningCount, setPlanningCount] = useState<number>(0);
 
-  // Activités récentes (placeholder)
-  const recentActivities = [
-    { id: 1, type: 'user', message: 'Nouvel utilisateur inscrit: Marie Dupont', time: 'Il y a 5 min', icon: UserCheck, color: 'blue' },
-    { id: 2, type: 'property', message: 'Nouvelle propriété ajoutée: Villa Marseille', time: 'Il y a 15 min', icon: Building2, color: 'green' },
-    { id: 3, type: 'alert', message: 'Signalement: Contenu inapproprié', time: 'Il y a 1h', icon: AlertCircle, color: 'red' },
-    { id: 4, type: 'message', message: '5 nouveaux messages non lus', time: 'Il y a 2h', icon: MessageSquare, color: 'purple' },
-  ];
+  // Fetch unread messages count
+  useEffect(() => {
+    async function fetchUnreadMessages() {
+      try {
+        let token: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const rawToken = localStorage.getItem('token');
+          token = rawToken !== null ? rawToken : undefined;
+        }
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await axios.get(`${apiUrl}/contact/unread-count`, { headers });
+        setUnreadMessages(res.data?.count || 0);
+      } catch {
+        setUnreadMessages(0);
+      }
+    }
+    fetchUnreadMessages();
+  }, []);
+
+  // Fetch alerts count (replace endpoint with your real one if needed)
+  useEffect(() => {
+    async function fetchAlerts() {
+      try {
+        let token: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const rawToken = localStorage.getItem('token');
+          token = rawToken !== null ? rawToken : undefined;
+        }
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        // Example: /notifications/unread-count or similar
+        const res = await axios.get(`${apiUrl}/notifications/unread-count`, { headers });
+        setAlertsCount(res.data?.count || 0);
+      } catch {
+        setAlertsCount(0);
+      }
+    }
+    fetchAlerts();
+  }, []);
+
+  // Fetch planning count (replace endpoint with your real one if needed)
+  useEffect(() => {
+    async function fetchPlanning() {
+      try {
+        let token: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const rawToken = localStorage.getItem('token');
+          token = rawToken !== null ? rawToken : undefined;
+        }
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        // Example: /appointments/upcoming-count or similar
+        const res = await axios.get(`${apiUrl}/appointments/upcoming-count`, { headers });
+        setPlanningCount(res.data?.count || 0);
+      } catch {
+        setPlanningCount(0);
+      }
+    }
+    fetchPlanning();
+  }, []);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      setLoading(true);
+      try {
+        // Get token from localStorage
+        let token: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const rawToken = localStorage.getItem('token');
+          token = rawToken !== null ? rawToken : undefined;
+        }
+        // Fetch user stats (with token)
+        const userStats = await userApi.getUserStats(token);
+        // Fetch property stats (get total count)
+        const propertyRes = await getProperties({ page: 1, limit: 1 }, token);
+        // Fetch sold properties count
+        const soldRes = await getProperties({ status: 'vendu', page: 1, limit: 1 }, token);
+        // Fetch rented properties count
+        const rentedRes = await getProperties({ status: 'loue', page: 1, limit: 1 }, token);
+        // Debug logs
+        console.log('userStats', userStats);
+        console.log('propertyRes', propertyRes);
+        console.log('soldRes', soldRes);
+        console.log('rentedRes', rentedRes);
+        // Debug: print userStats to verify structure
+        console.log('[AdminDashboard] userStats:', userStats);
+        setStats({
+          totalUsers: userStats?.total || 0,
+          newUsersThisMonth: 0, // Placeholder, implement if backend provides
+          totalProperties: propertyRes?.totalItems || 0,
+          soldProperties: soldRes?.totalItems || 0,
+          rentedProperties: rentedRes?.totalItems || 0,
+          pendingApprovals: 0, // Placeholder, implement if backend provides
+          revenueThisMonth: (userStats?.monthlyRevenue ?? 0).toLocaleString('fr-TN') + ' TND',
+          revenueChangePercent: userStats?.revenueChangePercent ?? 0,
+        });
+      } catch (e) {
+        // Optionally handle error
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
+  }, []);
+
+  // --- Real recent activities ---
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  useEffect(() => {
+    async function fetchRecentActivities() {
+      try {
+        let token: string | undefined = undefined;
+        if (typeof window !== 'undefined') {
+          const rawToken = localStorage.getItem('token');
+          token = rawToken !== null ? rawToken : undefined;
+        }
+        // Fetch last 4 users
+        const usersRes = await userApi.getAllUsers({ limit: 4, sort: '-createdAt' }, token);
+        // Fetch last 4 properties
+        const propertiesRes = await getProperties({ limit: 4, sort: '-createdAt' }, token);
+        // Fetch last 4 reports (simulate as alerts)
+        // You may need to replace this with your real API endpoint for reports/alerts
+        // const reportsRes = await apiClient.get('/reports?limit=4&sort=-createdAt', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        // Fetch last 4 messages (simulate as messages)
+        // You may need to replace this with your real API endpoint for messages
+        // const messagesRes = await apiClient.get('/messages?limit=4&sort=-createdAt', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+
+        const activities: any[] = [];
+        // Users
+        if (Array.isArray(usersRes)) {
+          usersRes.forEach((u: any) => {
+            activities.push({
+              id: 'user-' + u._id,
+              type: 'user',
+              message: `Nouvel utilisateur inscrit: ${u.firstName || ''} ${u.lastName || ''}`.trim(),
+              time: u.createdAt ? timeAgo(u.createdAt) : '',
+              icon: UserCheck,
+              color: 'blue',
+            });
+          });
+        }
+        // Properties
+        if (propertiesRes?.data && Array.isArray(propertiesRes.data)) {
+          propertiesRes.data.forEach((p: any) => {
+            activities.push({
+              id: 'property-' + p._id,
+              type: 'property',
+              message: `Nouvelle propriété ajoutée: ${p.title}`,
+              time: p.createdAt ? timeAgo(p.createdAt) : '',
+              icon: Building2,
+              color: 'green',
+            });
+          });
+        }
+        // Optionally, add alerts and messages if you have endpoints
+        // Sort by most recent
+        activities.sort((a, b) => (b.timeRaw || 0) - (a.timeRaw || 0));
+        setRecentActivities(activities.slice(0, 4));
+      } catch (e) {
+        // fallback to empty
+        setRecentActivities([]);
+      }
+    }
+    fetchRecentActivities();
+  }, []);
+
+  // Helper: time ago
+  function timeAgo(dateString: string) {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // seconds
+    if (diff < 60) return `Il y a ${diff} sec`;
+    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+    return date.toLocaleDateString('fr-FR');
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-gray-900">
       <main className="pt-16">
         {/* Admin Header */}
-        <section className="bg-gradient-to-r from-blue-700 via-blue-800 to-gray-900 text-white py-12 shadow-2xl">
+        <section className="bg-linear-to-r from-blue-700 via-blue-800 to-gray-900 text-white py-12 shadow-2xl">
           <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
@@ -63,10 +257,14 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <div className="mt-6 md:mt-0 flex items-center space-x-4">
-                <div className="bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg border border-white/20">
+                <div className="bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg border border-white/20 flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <Activity className="h-5 w-5" />
                     <span className="font-semibold">Système opérationnel</span>
+                  </div>
+                  {/* Notification Bell */}
+                  <div className="ml-4">
+                    {typeof window !== 'undefined' && require('../notifications/AdminNotificationBell').default ? require('../notifications/AdminNotificationBell').default() : null}
                   </div>
                 </div>
               </div>
@@ -101,10 +299,6 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-gray-600 text-sm font-medium mb-1">Total Biens</p>
                     <h3 className="text-3xl font-bold text-gray-900">{stats.totalProperties}</h3>
-                    <p className="text-blue-600 text-sm mt-2 flex items-center">
-                      <Activity className="h-4 w-4 mr-1" />
-                      {stats.activeAgents} agents actifs
-                    </p>
                   </div>
                   <div className="bg-green-100 p-3 rounded-lg">
                     <Building2 className="h-8 w-8 text-green-600" />
@@ -112,22 +306,40 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Pending Approvals */}
-              <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-orange-500 hover:shadow-2xl transition-all">
+              {/* Properties Sold */}
+              <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-yellow-500 hover:shadow-2xl transition-all">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">En attente</p>
-                    <h3 className="text-3xl font-bold text-gray-900">{stats.pendingApprovals}</h3>
-                    <p className="text-orange-600 text-sm mt-2 flex items-center">
-                      <AlertCircle className="h-4 w-4 mr-1" />
-                      Nécessite validation
+                    <p className="text-gray-600 text-sm font-medium mb-1">Biens Vendus</p>
+                    <h3 className="text-3xl font-bold text-gray-900">{stats.soldProperties}</h3>
+                    <p className="text-yellow-600 text-sm mt-2 flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Total vendus
                     </p>
                   </div>
-                  <div className="bg-orange-100 p-3 rounded-lg">
-                    <FileText className="h-8 w-8 text-orange-600" />
+                  <div className="bg-yellow-100 p-3 rounded-lg">
+                    <BarChart3 className="h-8 w-8 text-yellow-600" />
                   </div>
                 </div>
               </div>
+
+              {/* Properties Rented */}
+              <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-cyan-500 hover:shadow-2xl transition-all">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium mb-1">Biens Loués</p>
+                    <h3 className="text-3xl font-bold text-gray-900">{stats.rentedProperties}</h3>
+                    <p className="text-cyan-600 text-sm mt-2 flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Total loués
+                    </p>
+                  </div>
+                  <div className="bg-cyan-100 p-3 rounded-lg">
+                    <BarChart3 className="h-8 w-8 text-cyan-600" />
+                  </div>
+                </div>
+              </div>
+
 
               {/* Revenue */}
               <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-purple-500 hover:shadow-2xl transition-all">
@@ -137,7 +349,7 @@ export default function AdminDashboard() {
                     <h3 className="text-3xl font-bold text-gray-900">{stats.revenueThisMonth}</h3>
                     <p className="text-purple-600 text-sm mt-2 flex items-center">
                       <TrendingUp className="h-4 w-4 mr-1" />
-                      +12% vs mois dernier
+                      {stats.revenueChangePercent > 0 ? '+' : ''}{stats.revenueChangePercent.toFixed(0)}% vs mois dernier
                     </p>
                   </div>
                   <div className="bg-purple-100 p-3 rounded-lg">
@@ -146,22 +358,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Active Agents */}
-              <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-indigo-500 hover:shadow-2xl transition-all">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-gray-600 text-sm font-medium mb-1">Agents Actifs</p>
-                    <h3 className="text-3xl font-bold text-gray-900">{stats.activeAgents}</h3>
-                    <p className="text-indigo-600 text-sm mt-2 flex items-center">
-                      <UserCheck className="h-4 w-4 mr-1" />
-                      Sur {Math.floor(stats.activeAgents * 1.2)} total
-                    </p>
-                  </div>
-                  <div className="bg-indigo-100 p-3 rounded-lg">
-                    <UserCheck className="h-8 w-8 text-indigo-600" />
-                  </div>
-                </div>
-              </div>
+
 
               {/* System Status */}
               <div className="bg-white rounded-xl shadow-xl p-6 border-l-4 border-green-500 hover:shadow-2xl transition-all">
@@ -189,7 +386,7 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-bold text-white mb-8">Actions Administrateur</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Management */}
-              <Link href="/admin/users" className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
+              <Link href="/admin/users" className="bg-linear-to-br from-blue-500 to-blue-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
                 <div className="flex flex-col items-center text-center">
                   <div className="bg-white/20 p-4 rounded-full mb-4 group-hover:bg-white/30 transition-colors">
                     <Users className="h-8 w-8" />
@@ -203,7 +400,7 @@ export default function AdminDashboard() {
               </Link>
 
               {/* Property Management */}
-              <Link href="/admin/properties" className="bg-gradient-to-br from-green-500 to-green-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
+              <Link href="/admin/properties" className="bg-linear-to-br from-green-500 to-green-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
                 <div className="flex flex-col items-center text-center">
                   <div className="bg-white/20 p-4 rounded-full mb-4 group-hover:bg-white/30 transition-colors">
                     <Building2 className="h-8 w-8" />
@@ -216,8 +413,22 @@ export default function AdminDashboard() {
                 </div>
               </Link>
 
+              {/* Appointment Management */}
+              <Link href="/admin/appointments" className="bg-linear-to-br from-cyan-500 to-cyan-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-white/20 p-4 rounded-full mb-4 group-hover:bg-white/30 transition-colors">
+                    <Calendar className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Gestion Rendez-vous</h3>
+                  <p className="text-cyan-100 text-sm mb-4">
+                    Gérer et approuver les rendez-vous
+                  </p>
+                  <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                </div>
+              </Link>
+
               {/* Reports */}
-              <Link href="/admin/reports" className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
+              <Link href="/admin/rapports" className="bg-linear-to-br from-purple-500 to-purple-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
                 <div className="flex flex-col items-center text-center">
                   <div className="bg-white/20 p-4 rounded-full mb-4 group-hover:bg-white/30 transition-colors">
                     <BarChart3 className="h-8 w-8" />
@@ -231,7 +442,7 @@ export default function AdminDashboard() {
               </Link>
 
               {/* Settings */}
-              <Link href="/admin/settings" className="bg-gradient-to-br from-red-500 to-red-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
+              <Link href="/admin/settings" className="bg-linear-to-br from-red-500 to-red-700 rounded-xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group text-white">
                 <div className="flex flex-col items-center text-center">
                   <div className="bg-white/20 p-4 rounded-full mb-4 group-hover:bg-white/30 transition-colors">
                     <Settings className="h-8 w-8" />
@@ -309,19 +520,19 @@ export default function AdminDashboard() {
               <Link href="/admin/messages" className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-center transition-all group border border-gray-700">
                 <MessageSquare className="h-8 w-8 text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                 <p className="text-white text-sm font-medium">Messages</p>
-                <p className="text-gray-400 text-xs mt-1">5 non lus</p>
+                <p className="text-gray-400 text-xs mt-1">{unreadMessages} non lus</p>
               </Link>
 
               <Link href="/admin/notifications" className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-center transition-all group border border-gray-700">
                 <Bell className="h-8 w-8 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                 <p className="text-white text-sm font-medium">Alertes</p>
-                <p className="text-gray-400 text-xs mt-1">3 nouvelles</p>
+                <p className="text-gray-400 text-xs mt-1">{alertsCount} nouvelles</p>
               </Link>
 
               <Link href="/admin/calendar" className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-center transition-all group border border-gray-700">
                 <Calendar className="h-8 w-8 text-green-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                 <p className="text-white text-sm font-medium">Planning</p>
-                <p className="text-gray-400 text-xs mt-1">Voir agenda</p>
+                <p className="text-gray-400 text-xs mt-1">{planningCount > 0 ? `${planningCount} à venir` : 'Voir agenda'}</p>
               </Link>
             </div>
           </div>

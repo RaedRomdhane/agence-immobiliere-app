@@ -91,6 +91,29 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+
+    // Derniers critères de recherche sauvegardés (JSON)
+    lastPropertySearchCriteria: {
+      type: Object,
+      default: null,
+    },
+
+    // Recherches sauvegardées (tableau d'objets { name, criteria, createdAt })
+    savedSearches: [
+      {
+        name: { type: String, required: true },
+        criteria: { type: Object, required: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Favoris : propriétés ajoutées en favoris par l'utilisateur
+    favorites: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Property',
+      default: [],
+    }],
+
     // Métadonnées
     lastLogin: Date,
     loginAttempts: {

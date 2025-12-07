@@ -95,12 +95,12 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                <span>123 Avenue de la République<br />75001 Paris, France</span>
+                <span>Avenue Habib Bourguiba<br />Tunis, Tunisie</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone className="h-5 w-5 text-blue-500 flex-shrink-0" />
                 <a href="tel:+33123456789" className="hover:text-blue-500 transition-colors">
-                  +33 1 23 45 67 89
+                  +216 96 25 48 45
                 </a>
               </li>
               <li className="flex items-center space-x-3">

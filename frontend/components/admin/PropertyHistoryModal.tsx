@@ -1,5 +1,19 @@
 import React from 'react';
 
+// Helper to flatten nested diff objects into { fieldPath: { before, after } }
+type DiffEntry = { before: any; after: any };
+function flattenDiff(diff: any, prefix = ""): Record<string, DiffEntry> {
+  let result: Record<string, DiffEntry> = {};
+  for (const key in diff) {
+    if (diff[key] && typeof diff[key] === "object" && "before" in diff[key] && "after" in diff[key]) {
+      result[(prefix ? prefix + "." : "") + key] = { before: diff[key].before, after: diff[key].after };
+    } else if (diff[key] && typeof diff[key] === "object") {
+      Object.assign(result, flattenDiff(diff[key], (prefix ? prefix + "." : "") + key));
+    }
+  }
+  return result;
+}
+
 interface ChangedBy {
   firstName?: string;
   lastName?: string;
@@ -38,7 +52,7 @@ export default function PropertyHistoryModal({
 }: PropertyHistoryModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-60 backdrop-blur-sm">
       <div className={modalClassName}>
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl"
@@ -66,7 +80,7 @@ export default function PropertyHistoryModal({
                     a modifié le bien le{' '}
                     <span className="text-gray-500">{new Date(item.changedAt).toLocaleString()}</span>
                   </div>
-                  {item.changes && item.changes.before && item.changes.after ? (
+                  {item.changes && Object.keys(flattenDiff(item.changes)).length > 0 ? (
                     <table className="w-full text-xs bg-gray-50 rounded border border-gray-200 mb-2">
                       <thead>
                         <tr className="bg-gray-100">
@@ -76,28 +90,26 @@ export default function PropertyHistoryModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.keys(item.changes.after).filter(key => {
-                          // Only show fields that actually changed
-                          const beforeVal = item.changes.before[key];
-                          const afterVal = item.changes.after[key];
-                          // Compare as JSON for objects/arrays
-                          return JSON.stringify(beforeVal) !== JSON.stringify(afterVal);
-                        }).map(key => (
-                          <tr key={key}>
-                            <td className="px-2 py-1 font-medium text-gray-700">{key}</td>
-                            <td className="px-2 py-1 text-gray-500 max-w-[180px] truncate" title={typeof item.changes.before[key] === 'object' ? JSON.stringify(item.changes.before[key], null, 2) : String(item.changes.before[key])}>
-                              {typeof item.changes.before[key] === 'object' ? JSON.stringify(item.changes.before[key]) : String(item.changes.before[key])}
-                            </td>
-                            <td className="px-2 py-1 text-blue-700 max-w-[180px] truncate" title={typeof item.changes.after[key] === 'object' ? JSON.stringify(item.changes.after[key], null, 2) : String(item.changes.after[key])}>
-                              {typeof item.changes.after[key] === 'object' ? JSON.stringify(item.changes.after[key]) : String(item.changes.after[key])}
-                            </td>
-                          </tr>
-                        ))}
+                        {Object.entries(flattenDiff(item.changes)).map(([field, entry]) => {
+                          const { before, after } = entry as DiffEntry;
+                          return (
+                            <tr key={field}>
+                              <td className="px-2 py-1 font-medium text-gray-700">{field}</td>
+                              <td className="px-2 py-1 text-gray-500 max-w-[180px] truncate" title={typeof before === 'object' ? JSON.stringify(before, null, 2) : String(before)}>
+                                {typeof before === 'object' ? JSON.stringify(before) : String(before)}
+                              </td>
+                              <td className="px-2 py-1 text-blue-700 max-w-[180px] truncate" title={typeof after === 'object' ? JSON.stringify(after, null, 2) : String(after)}>
+                                {typeof after === 'object' ? JSON.stringify(after) : String(after)}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   ) : (
                     <div className="text-xs text-gray-500 italic">Aucune différence détectée.</div>
                   )}
+
                 </li>
               ))}
             </ul>

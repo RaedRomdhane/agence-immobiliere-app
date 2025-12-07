@@ -7,7 +7,8 @@ import { getPropertyById, Property } from '@/lib/api/properties';
 import { useParams, useRouter } from 'next/navigation';
 
 export default function EditPropertyPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const router = useRouter();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);

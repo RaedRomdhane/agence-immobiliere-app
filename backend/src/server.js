@@ -45,6 +45,10 @@ const startServer = async () => {
       });
     });
 
+    // --- WEBSOCKET NOTIFICATION SERVER SETUP ---
+    const { setupWebSocket } = require('./ws/notificationWS');
+    setupWebSocket(server);
+
     return server;
   } catch (error) {
     console.error('❌ Échec du démarrage du serveur:', error.message);

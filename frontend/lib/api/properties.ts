@@ -22,6 +22,11 @@ export const updateProperty = async (id: string, data: any, token: string) => {
     formData.append('location', JSON.stringify(data.location));
     formData.append('features', JSON.stringify(data.features));
 
+    // Ajouter le champ onMap si présent
+    if (typeof data.onMap !== 'undefined') {
+      formData.append('onMap', data.onMap.toString());
+    }
+
     // Ajouter les photos existantes si elles existent
     if (data.existingPhotos && data.existingPhotos.length > 0) {
       formData.append('existingPhotos', JSON.stringify(data.existingPhotos));
@@ -103,6 +108,7 @@ export interface Property {
     filename: string;
     isPrimary: boolean;
   };
+  onMap?: boolean;
 }
 
 export interface PropertyFormData {
@@ -204,7 +210,7 @@ export const createProperty = async (propertyData: PropertyFormData, token: stri
 /**
  * Récupérer tous les biens avec filtres
  */
-export const getProperties = async (filters?: PropertyFilters) => {
+export const getProperties = async (filters?: PropertyFilters, token?: string) => {
   try {
     const params = new URLSearchParams();
 
@@ -216,7 +222,12 @@ export const getProperties = async (filters?: PropertyFilters) => {
       });
     }
 
-    const response = await axios.get(`${API_URL}/properties?${params.toString()}`);
+    const headers: any = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await axios.get(`${API_URL}/properties?${params.toString()}`, { headers });
     return response.data;
   } catch (error: any) {
     throw new Error(

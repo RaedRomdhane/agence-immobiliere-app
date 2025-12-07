@@ -1,18 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 // @ts-ignore - allow importing global CSS without type declarations
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { NotificationProvider } from "../components/notifications/NotificationContext";
+import { ChatProvider } from "@/components/chat/ChatContext";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 export const metadata: Metadata = {
   title: "Agence Immobilière",
@@ -27,10 +19,16 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
+        style={{ paddingTop: 0, fontFamily: 'system-ui, sans-serif' }} // Adjust to match your header height
       >
         <AuthProvider>
-          {children}
+          <NotificationProvider>
+            <ChatProvider>
+              {children}
+              <ChatWidget />
+            </ChatProvider>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

@@ -1,9 +1,135 @@
-/**
- * Routes pour la gestion des utilisateurs
- */
+
+const Property = require('../models/Property');
+const User = require('../models/User');
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
+const { protect } = require('../middlewares/auth');
+
+// --- SAVED SEARCHES: GET/POST ---
+// GET all saved searches for a user
+router.get('/:id/saved-searches', protect, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    res.json({ success: true, data: user.savedSearches || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des recherches sauvegardées', error: err.message });
+  }
+});
+
+// POST a new saved search for a user
+router.post('/:id/saved-searches', protect, async (req, res) => {
+  const userId = req.params.id;
+  const { name, criteria } = req.body;
+  if (!name || !criteria) {
+    return res.status(400).json({ success: false, message: 'name et criteria requis' });
+  }
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    // Optionally: prevent duplicate names
+    if (user.savedSearches && user.savedSearches.some(s => s.name === name)) {
+      return res.status(409).json({ success: false, message: 'Une recherche avec ce nom existe déjà.' });
+    }
+    user.savedSearches.push({ name, criteria });
+    await user.save();
+    res.json({ success: true, message: 'Recherche sauvegardée', data: user.savedSearches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde de la recherche', error: err.message });
+  }
+});
+
+// GET /api/users/:id/favorites/properties - Get all favorite properties for a user
+router.get('/:id/favorites/properties', protect, async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    if (!user.favorites || user.favorites.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    // Fetch all properties in the user's favorites, preserving order
+    const properties = await Property.find({ _id: { $in: user.favorites } });
+    // Sort to match the order in user.favorites
+    const sorted = user.favorites.map(fid => properties.find(p => String(p._id) === String(fid))).filter(Boolean);
+    res.json({ success: true, data: sorted });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des favoris', error: err.message });
+  }
+});
+// Update order of favorites
+const mongoose = require('mongoose');
+router.patch('/:id/favorites/order', protect, async (req, res) => {
+  const userId = req.params.id;
+  const { favorites } = req.body;
+  if (!Array.isArray(favorites)) {
+    return res.status(400).json({ success: false, message: 'favorites array requis' });
+  }
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    user.favorites = favorites.map(id => new mongoose.Types.ObjectId(id));
+    await user.save();
+    res.json({ success: true, message: 'Ordre des favoris mis à jour', favorites: user.favorites });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur mise à jour ordre favoris', error: err.message });
+  }
+});
+// --- FAVORITES: Add/Remove property to/from user favorites ---
+
+// Add property to favorites
+router.post('/:id/favorites', protect, async (req, res) => {
+  const userId = req.params.id;
+  const { propertyId } = req.body;
+  if (!propertyId) return res.status(400).json({ success: false, message: 'propertyId requis' });
+  try {
+    // Update User
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    if (!user.favorites.map(String).includes(propertyId)) {
+      user.favorites.push(propertyId);
+      await user.save();
+    }
+    // Update Property
+    const property = await Property.findById(propertyId);
+    if (property && !property.favorites.map(String).includes(userId)) {
+      property.favorites.push(userId);
+      await property.save();
+    }
+    res.json({ success: true, message: 'Ajouté aux favoris' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur ajout favori', error: err.message });
+  }
+});
+
+// Remove property from favorites
+router.delete('/:id/favorites', protect, async (req, res) => {
+  const userId = req.params.id;
+  const { propertyId } = req.body;
+  if (!propertyId) return res.status(400).json({ success: false, message: 'propertyId requis' });
+  try {
+    // Update User
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    user.favorites = user.favorites.filter(favId => String(favId) !== propertyId);
+    await user.save();
+    // Update Property
+    const property = await Property.findById(propertyId);
+    if (property) {
+      property.favorites = property.favorites.filter(favId => String(favId) !== userId);
+      await property.save();
+    }
+    res.json({ success: true, message: 'Retiré des favoris' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur suppression favori', error: err.message });
+  }
+});
+
+
+// Pour validation d'ObjectId simple
+const { param } = require('express-validator');
 const { validate } = require('../middlewares/validator');
 const {
   createUserValidation,
@@ -14,6 +140,59 @@ const {
   toggleStatusValidation,
   changeRoleValidation,
 } = require('../validators/userValidator');
+
+
+/**
+ * @swagger
+ * /api/users/{id}/change-password:
+ *   post:
+ *     summary: Changer le mot de passe de l'utilisateur
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Mot de passe changé avec succès
+ */
+router.post('/:id/change-password', param('id').isMongoId(), validate, userController.changePassword);
+
+/**
+ * @swagger
+ * /api/users/{id}/export:
+ *   get:
+ *     summary: Exporter toutes les données personnelles de l'utilisateur (RGPD)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     responses:
+ *       200:
+ *         description: Données exportées avec succès
+ */
+router.get('/:id/export', param('id').isMongoId(), validate, userController.exportUserData);
 
 /**
  * @swagger
@@ -267,5 +446,60 @@ router.patch('/:id/status', toggleStatusValidation, validate, userController.tog
  *         description: Rôle modifié avec succès
  */
 router.patch('/:id/role', changeRoleValidation, validate, userController.changeUserRole);
+
+// --- Routes pour critères de recherche sauvegardés ---
+/**
+ * @swagger
+ * /api/users/{id}/last-search-criteria:
+ *   get:
+ *     summary: Récupérer les critères de recherche sauvegardés d'un utilisateur
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     responses:
+ *       200:
+ *         description: Critères récupérés avec succès
+ */
+router.get(
+  '/:id/last-search-criteria',
+  param('id').isMongoId(),
+  validate,
+  userController.getLastPropertySearchCriteria
+);
+
+/**
+ * @swagger
+ * /api/users/{id}/last-search-criteria:
+ *   post:
+ *     summary: Sauvegarder les critères de recherche d'un utilisateur
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'utilisateur
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Critères sauvegardés avec succès
+ */
+router.post(
+  '/:id/last-search-criteria',
+  param('id').isMongoId(),
+  validate,
+  userController.setLastPropertySearchCriteria
+);
 
 module.exports = router;

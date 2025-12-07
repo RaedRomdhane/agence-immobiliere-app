@@ -1,10 +1,58 @@
+const asyncHandler = require('../utils/asyncHandler');
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+/**
+ * @desc    Changer le mot de passe de l'utilisateur
+ * @route   POST /api/users/:id/change-password
+ * @access  Private (user or admin)
+ */
+const changePassword = asyncHandler(async (req, res) => {
+  const userId = req.params.id;
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Champs requis manquants.' });
+  }
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+  }
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
+  }
+  user.password = newPassword;
+  await user.save();
+  res.json({ message: 'Mot de passe changé avec succès.' });
+});
+
+/**
+ * @desc    Exporter toutes les données personnelles de l'utilisateur (RGPD)
+ * @route   GET /api/users/:id/export
+ * @access  Private (user or admin)
+ */
+const exportUserData = asyncHandler(async (req, res) => {
+  const userId = req.params.id;
+  const user = await User.findById(userId).lean();
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+  }
+  // Exclure les champs sensibles
+  delete user.password;
+  delete user.resetPasswordToken;
+  delete user.resetPasswordExpires;
+  delete user.emailVerificationToken;
+  delete user.emailVerificationExpires;
+  delete user.__v;
+  res.setHeader('Content-Disposition', `attachment; filename="user_${userId}_data.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.status(200).send(JSON.stringify(user, null, 2));
+});
 /**
  * Contrôleur pour la gestion des utilisateurs
  * Gère les requêtes HTTP et appelle les services appropriés
  */
 const userService = require('../services/userService');
 const { ApiResponse } = require('../utils');
-const asyncHandler = require('../utils/asyncHandler');
 
 /**
  * @desc    Créer un nouvel utilisateur
@@ -44,7 +92,7 @@ const getUserById = asyncHandler(async (req, res) => {
   const user = await userService.getUserById(req.params.id);
 
   const response = ApiResponse.success(user, 'Utilisateur récupéré avec succès');
-  response.send(res);
+  res.json(response);
 });
 
 /**
@@ -56,7 +104,35 @@ const updateUser = asyncHandler(async (req, res) => {
   const user = await userService.updateUser(req.params.id, req.body);
 
   const response = ApiResponse.success(user, 'Utilisateur mis à jour avec succès');
-  response.send(res);
+  res.json(response);
+});
+
+/**
+ * @desc    Récupérer les critères de recherche sauvegardés d'un utilisateur
+ * @route   GET /api/users/:id/last-search-criteria
+ * @access  Private (user or admin)
+ */
+const getLastPropertySearchCriteria = asyncHandler(async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const criteria = await userService.getLastPropertySearchCriteria(userId);
+    // Always return the criteria object directly (never a string or wrapper)
+    res.json(criteria || {});
+  } catch (error) {
+    console.error('[getLastPropertySearchCriteria] error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
+  }
+});
+
+/**
+ * @desc    Sauvegarder les critères de recherche d'un utilisateur
+ * @route   POST /api/users/:id/last-search-criteria
+ * @access  Private (user or admin)
+ */
+const setLastPropertySearchCriteria = asyncHandler(async (req, res) => {
+  const criteria = await userService.setLastPropertySearchCriteria(req.params.id, req.body);
+  const response = ApiResponse.success(criteria, 'Critères de recherche sauvegardés avec succès');
+  res.json(response);
 });
 
 /**
@@ -68,7 +144,7 @@ const patchUser = asyncHandler(async (req, res) => {
   const user = await userService.updateUser(req.params.id, req.body);
 
   const response = ApiResponse.success(user, 'Utilisateur mis à jour avec succès');
-  response.send(res);
+  res.json(response);
 });
 
 /**
@@ -90,8 +166,16 @@ const deleteUser = asyncHandler(async (req, res) => {
 const getUserStats = asyncHandler(async (req, res) => {
   const stats = await userService.getUserStats();
 
+  // Debug: print total and a sample user
+
+  const User = require('../models/User');
+  const totalUsers = await User.countDocuments();
+  console.log("[DEBUG] user stats:", stats);
+  console.log("[DEBUG] monthlyRevenue:", stats.monthlyRevenue);
+  console.log('[DEBUG /api/users/stats] Total users:', totalUsers);
+
   const response = ApiResponse.success(stats, 'Statistiques récupérées avec succès');
-  response.send(res);
+  res.json(response);
 });
 
 /**
@@ -103,7 +187,7 @@ const getActiveAgents = asyncHandler(async (req, res) => {
   const agents = await userService.getActiveAgents();
 
   const response = ApiResponse.success(agents, 'Agents actifs récupérés avec succès');
-  response.send(res);
+  res.json(response);
 });
 
 /**
@@ -119,7 +203,7 @@ const toggleUserStatus = asyncHandler(async (req, res) => {
     user,
     `Utilisateur ${isActive ? 'activé' : 'désactivé'} avec succès`
   );
-  response.send(res);
+  res.json(response);
 });
 
 /**
@@ -132,7 +216,7 @@ const changeUserRole = asyncHandler(async (req, res) => {
   const user = await userService.changeUserRole(req.params.id, role);
 
   const response = ApiResponse.success(user, 'Rôle modifié avec succès');
-  response.send(res);
+  res.json(response);
 });
 
 module.exports = {
@@ -146,4 +230,8 @@ module.exports = {
   getActiveAgents,
   toggleUserStatus,
   changeUserRole,
+  getLastPropertySearchCriteria,
+  setLastPropertySearchCriteria,
+  changePassword,
+  exportUserData,
 };

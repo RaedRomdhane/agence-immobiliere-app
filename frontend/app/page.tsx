@@ -32,10 +32,57 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loadingProperties, setLoadingProperties] = useState(true);
+  const [stats, setStats] = useState({
+    totalProperties: 0,
+    totalReviews: 0,
+    cities: 0
+  });
+
+  // Fetch popular properties and stats
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        
+        // Fetch properties
+        const propsRes = await fetch(`${apiUrl}/properties?limit=3&sort=-createdAt&status=disponible`);
+        const propsData = await propsRes.json();
+        setProperties(propsData.data || []);
+        
+        // Fetch all properties for total count
+        const allPropsRes = await fetch(`${apiUrl}/properties`);
+        const allPropsData = await allPropsRes.json();
+        const totalProperties = allPropsData.data?.length || 0;
+        
+        // Calculate unique cities
+        const cities = new Set(
+          (allPropsData.data || []).map((p: any) => p.city || p.location?.city).filter(Boolean)
+        );
+        
+        // Fetch reviews stats
+        const reviewsRes = await fetch(`${apiUrl}/reviews`);
+        const reviewsData = await reviewsRes.json();
+        const totalReviews = reviewsData.stats?.totalReviews || 0;
+        
+        setStats({
+          totalProperties,
+          totalReviews,
+          cities: cities.size
+        });
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoadingProperties(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     // Vérifier si l'utilisateur vient de s'inscrire
-    const registered = searchParams.get('registered');
+    const registered = searchParams?.get('registered');
     if (registered === 'true') {
       setShowSuccessToast(true);
       
@@ -159,15 +206,15 @@ function HomeContent() {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto pt-8 border-t border-gray-200">
                 <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">500+</div>
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600">{stats.totalProperties}+</div>
                   <div className="text-sm md:text-base text-gray-600 mt-1">Biens disponibles</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">10K+</div>
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600">{stats.totalReviews}+</div>
                   <div className="text-sm md:text-base text-gray-600 mt-1">Clients satisfaits</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600">50+</div>
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600">{stats.cities}+</div>
                   <div className="text-sm md:text-base text-gray-600 mt-1">Villes couvertes</div>
                 </div>
               </div>
@@ -256,131 +303,111 @@ function HomeContent() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {/* Property Card 1 */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2">
-                <div className="relative h-64 bg-gradient-to-br from-blue-200 to-indigo-300">
-                  <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-blue-600">
-                    Nouveau
+              {loadingProperties ? (
+                // Loading skeletons
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg animate-pulse">
+                    <div className="h-64 bg-gray-200"></div>
+                    <div className="p-6">
+                      <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                      <div className="h-6 bg-gray-200 rounded w-2/3 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+                      <div className="flex justify-between mb-4">
+                        <div className="h-4 bg-gray-200 rounded w-12"></div>
+                        <div className="h-4 bg-gray-200 rounded w-12"></div>
+                        <div className="h-4 bg-gray-200 rounded w-12"></div>
+                      </div>
+                      <div className="h-8 bg-gray-200 rounded w-full"></div>
+                    </div>
                   </div>
+                ))
+              ) : properties.length > 0 ? (
+                properties.map((property, index) => {
+                  const badges = ['Nouveau', 'Populaire', 'Exclusif'];
+                  const badgeColors = ['blue', 'purple', 'green'];
+                  const gradients = [
+                    'from-blue-200 to-indigo-300',
+                    'from-purple-200 to-pink-300',
+                    'from-green-200 to-emerald-300'
+                  ];
+                  
+                  // Debug: log property photos
+                  console.log('Property photos:', property.photos);
+                  
+                  return (
+                    <div key={property._id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2">
+                      <div className={`relative h-64 bg-gradient-to-br ${gradients[index % 3]}`}>
+                        {property.photos && property.photos.length > 0 && (() => {
+                          const photo = property.photos[0];
+                          const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                          if (!photoUrl) return null;
+                          
+                          const fullUrl = photoUrl.startsWith('http') 
+                            ? photoUrl 
+                            : `http://localhost:5000${photoUrl.startsWith('/') ? '' : '/'}${photoUrl}`;
+                          
+                          return (
+                            <img 
+                              src={fullUrl}
+                              alt={property.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.log('Image load failed:', fullUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          );
+                        })()}
+                        <div className={`absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-${badgeColors[index % 3]}-600`}>
+                          {badges[index % 3]}
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <div className="flex items-center text-gray-600 text-sm mb-2">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {property.city || property.location?.city || 'Non spécifié'}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                          {property.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                          {property.description}
+                        </p>
+                        <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
+                          <div className="flex items-center">
+                            <Bed className="h-4 w-4 mr-1" />
+                            {property.bedrooms || 0} ch
+                          </div>
+                          <div className="flex items-center">
+                            <Bath className="h-4 w-4 mr-1" />
+                            {property.bathrooms || 0} sdb
+                          </div>
+                          <div className="flex items-center">
+                            <Square className="h-4 w-4 mr-1" />
+                            {property.surface || 0} m²
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xl font-bold text-blue-600">
+                            {property.price?.toLocaleString('fr-FR') || 0} TND
+                          </span>
+                          <Link 
+                            href={`/properties/${property._id}`}
+                            className="text-blue-600 hover:text-blue-700 font-medium flex items-center"
+                          >
+                            Voir plus
+                            <ArrowRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="col-span-3 text-center py-12">
+                  <p className="text-gray-600">Aucun bien disponible pour le moment.</p>
                 </div>
-                <div className="p-6">
-                  <div className="flex items-center text-gray-600 text-sm mb-2">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Paris 16ème
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Appartement moderne
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Magnifique appartement de 85m² avec vue dégagée
-                  </p>
-                  <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Bed className="h-4 w-4 mr-1" />
-                      3 ch
-                    </div>
-                    <div className="flex items-center">
-                      <Bath className="h-4 w-4 mr-1" />
-                      2 sdb
-                    </div>
-                    <div className="flex items-center">
-                      <Square className="h-4 w-4 mr-1" />
-                      85 m²
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-600">450 000 €</span>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center">
-                      Voir plus
-                      <ArrowRight className="h-4 w-4 ml-1" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Property Card 2 */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2">
-                <div className="relative h-64 bg-gradient-to-br from-purple-200 to-pink-300">
-                  <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-purple-600">
-                    Populaire
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center text-gray-600 text-sm mb-2">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Lyon 6ème
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Maison familiale
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Belle maison avec jardin, idéale pour famille
-                  </p>
-                  <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Bed className="h-4 w-4 mr-1" />
-                      4 ch
-                    </div>
-                    <div className="flex items-center">
-                      <Bath className="h-4 w-4 mr-1" />
-                      2 sdb
-                    </div>
-                    <div className="flex items-center">
-                      <Square className="h-4 w-4 mr-1" />
-                      120 m²
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-600">580 000 €</span>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center">
-                      Voir plus
-                      <ArrowRight className="h-4 w-4 ml-1" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Property Card 3 */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2">
-                <div className="relative h-64 bg-gradient-to-br from-green-200 to-emerald-300">
-                  <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full text-sm font-semibold text-green-600">
-                    Exclusif
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center text-gray-600 text-sm mb-2">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Marseille 8ème
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Villa de luxe
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Villa d'exception avec piscine et vue mer
-                  </p>
-                  <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Bed className="h-4 w-4 mr-1" />
-                      5 ch
-                    </div>
-                    <div className="flex items-center">
-                      <Bath className="h-4 w-4 mr-1" />
-                      3 sdb
-                    </div>
-                    <div className="flex items-center">
-                      <Square className="h-4 w-4 mr-1" />
-                      200 m²
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-600">1 200 000 €</span>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center">
-                      Voir plus
-                      <ArrowRight className="h-4 w-4 ml-1" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="text-center">

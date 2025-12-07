@@ -1,10 +1,63 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { Shield, Users, Award, TrendingUp, Heart, Clock } from 'lucide-react';
+import apiClient from '@/lib/api/client';
 
 export default function AboutPage() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalProperties: 0,
+    cities: 0,
+    averageRating: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      // Fetch total properties
+      const propsRes = await apiClient.get('/properties');
+      const properties = propsRes.data.data || [];
+      const totalProperties = properties.length;
+
+      // Calculate unique cities
+      const cities = new Set(
+        properties.map((p: any) => p.address?.city).filter(Boolean)
+      );
+
+      // Fetch reviews stats
+      const reviewsRes = await apiClient.get('/reviews');
+      const averageRating = reviewsRes.data.stats?.averageRating || 0;
+      const totalReviews = reviewsRes.data.stats?.totalReviews || 0;
+
+      setStats({
+        totalUsers: totalReviews, // Nombre d'avis comme proxy pour clients satisfaits
+        totalProperties,
+        cities: cities.size,
+        averageRating
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      // Set default values on error
+      setStats({
+        totalUsers: 0,
+        totalProperties: 0,
+        cities: 0,
+        averageRating: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -47,19 +100,27 @@ export default function AboutPage() {
               <div className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-8">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-white rounded-xl p-6 text-center shadow-lg">
-                    <div className="text-4xl font-bold text-blue-600 mb-2">5000+</div>
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {loading ? '...' : `${stats.totalUsers}+`}
+                    </div>
                     <div className="text-gray-600">Clients satisfaits</div>
                   </div>
                   <div className="bg-white rounded-xl p-6 text-center shadow-lg">
-                    <div className="text-4xl font-bold text-blue-600 mb-2">15K+</div>
-                    <div className="text-gray-600">Biens vendus</div>
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {loading ? '...' : `${stats.totalProperties}+`}
+                    </div>
+                    <div className="text-gray-600">Biens disponibles</div>
                   </div>
                   <div className="bg-white rounded-xl p-6 text-center shadow-lg">
-                    <div className="text-4xl font-bold text-blue-600 mb-2">50+</div>
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {loading ? '...' : `${stats.cities}+`}
+                    </div>
                     <div className="text-gray-600">Villes couvertes</div>
                   </div>
                   <div className="bg-white rounded-xl p-6 text-center shadow-lg">
-                    <div className="text-4xl font-bold text-blue-600 mb-2">4.9/5</div>
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {loading ? '...' : stats.averageRating > 0 ? `${stats.averageRating.toFixed(1)}/5` : 'N/A'}
+                    </div>
                     <div className="text-gray-600">Note moyenne</div>
                   </div>
                 </div>
@@ -148,72 +209,33 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Team Section */}
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Notre Équipe</h2>
-              <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-                Des professionnels passionnés à votre service
+        {/* CTA Section - Only show if user is not logged in */}
+        {!user && (
+          <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Prêt à démarrer votre projet immobilier ?
+              </h2>
+              <p className="text-blue-100 text-lg mb-8">
+                Rejoignez des milliers de clients satisfaits et trouvez le bien de vos rêves
               </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full mx-auto mb-4"></div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Sarah Martin</h3>
-                <p className="text-blue-600 mb-2">Directrice Générale</p>
-                <p className="text-gray-600 text-sm">
-                  15 ans d&apos;expérience dans l&apos;immobilier de luxe
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full mx-auto mb-4"></div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Thomas Dubois</h3>
-                <p className="text-blue-600 mb-2">Directeur Commercial</p>
-                <p className="text-gray-600 text-sm">
-                  Expert en négociation et transactions immobilières
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-green-600 rounded-full mx-auto mb-4"></div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Julie Lefebvre</h3>
-                <p className="text-blue-600 mb-2">Responsable Client</p>
-                <p className="text-gray-600 text-sm">
-                  Spécialiste de l&apos;accompagnement personnalisé
-                </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="/register"
+                  className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                >
+                  Créer un compte gratuit
+                </a>
+                <a
+                  href="/contact"
+                  className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
+                >
+                  Nous contacter
+                </a>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Prêt à démarrer votre projet immobilier ?
-            </h2>
-            <p className="text-blue-100 text-lg mb-8">
-              Rejoignez des milliers de clients satisfaits et trouvez le bien de vos rêves
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/register"
-                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Créer un compte gratuit
-              </a>
-              <a
-                href="/contact"
-                className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
-              >
-                Nous contacter
-              </a>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
       <Footer />

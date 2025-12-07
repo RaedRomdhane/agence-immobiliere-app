@@ -94,7 +94,7 @@
 **Afin de** trouver rapidement des biens correspondant à mes critères
 
 **Critères d'acceptation :**
-- [ ] Filtres par prix, surface, nombre de pièces, localisation
+- [ ] Filtres par prix, surface, nombre de pièces, localisation, etc...
 - [ ] Recherche texte dans le titre et description
 - [ ] Résultats en temps réel pendant la saisie
 - [ ] Compteur de résultats

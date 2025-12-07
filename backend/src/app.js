@@ -16,6 +16,7 @@ const featureFlagRoutes = require('./routes/featureFlagRoutes');
 const propertyRoutes = require('./routes/propertyRoutes');
 const propertyHistoryRoutes = require('./routes/propertyHistoryRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 const logger = require('./config/logger');
 const { metricsMiddleware, register } = require('../metrics');
@@ -91,6 +92,9 @@ app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined', { st
 // Metrics middleware (Prometheus)
 app.use(metricsMiddleware);
 
+// Register webhook routes BEFORE body parsers
+app.use('/api/webhooks', webhookRoutes);
+
 // Expose Prometheus metrics
 app.get('/metrics', async (req, res) => {
   try {
@@ -152,6 +156,11 @@ app.use('/api/properties', propertyRoutes);
 app.use('/api/properties', propertyHistoryRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/appointments', require('./routes/appointmentRoutes'));
+app.use('/api/admin/contact', require('./routes/adminContactRoutes'));
+app.use('/api/contact', require('./routes/contactRoutes'));
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
 // Admin routes protected by feature flag (can be toggled on/off)
 app.use('/api/admin', requireFeatureFlag('admin-panel'), adminRoutes);
 // Route générale en dernier (ne pas mettre /api car déjà dans les routes ci-dessus)

@@ -20,13 +20,13 @@ export default function LoginForm() {
   
   // Message de succès uniquement au montage initial
   const [successMessage] = useState<string | null>(() => {
-    const registered = searchParams.get('registered');
+    const registered = searchParams?.get('registered');
     return registered === 'true' ? 'Inscription réussie ! Vous pouvez maintenant vous connecter.' : null;
   });
 
   // Gérer les erreurs Google OAuth depuis l'URL
   useEffect(() => {
-    const googleError = searchParams.get('error');
+    const googleError = searchParams?.get('error');
     if (googleError) {
       // Décoder le message d'erreur
       const decodedError = decodeURIComponent(googleError);

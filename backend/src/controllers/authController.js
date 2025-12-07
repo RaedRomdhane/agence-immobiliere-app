@@ -133,6 +133,7 @@ exports.getMe = asyncHandler(async (req, res) => {
         photoURL: user.avatar, // Ajouter l'avatar de l'utilisateur
         isActive: user.isActive,
         createdAt: user.createdAt,
+        favorites: user.favorites || [],
       },
     })
   );

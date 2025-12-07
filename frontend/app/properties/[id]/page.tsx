@@ -1,19 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter, useParams } from "next/navigation";
 import { MapPin, Bed, Bath, Square } from "lucide-react";
 import { getPropertyById } from '@/lib/api/properties';
 
 export default function PropertyDetailsPage() {
+  const { user } = useAuth();
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!id) return;
+    // Add to recently viewed in localStorage (per user)
+    if (typeof window !== 'undefined' && user?.id) {
+      const key = `recentlyViewedProperties_${user.id}`;
+      let ids: string[] = [];
+      try {
+        ids = JSON.parse(localStorage.getItem(key) || '[]');
+      } catch {}
+      // Remove if already present
+      ids = ids.filter((pid) => pid !== id);
+      // Add to front
+      ids.unshift(id as string);
+      // Limit to 6
+      if (ids.length > 6) ids = ids.slice(0, 6);
+      localStorage.setItem(key, JSON.stringify(ids));
+    }
     const fetchProperty = async () => {
       try {
         setLoading(true);
@@ -26,7 +44,7 @@ export default function PropertyDetailsPage() {
       }
     };
     fetchProperty();
-  }, [id]);
+  }, [id, user?.id]);
 
   if (loading) {
     return (
@@ -51,12 +69,19 @@ export default function PropertyDetailsPage() {
     );
   }
 
+  const handleRetour = () => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/properties');
+    }
+  };
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 flex items-center justify-center bg-gray-50 py-18">
         <div className="w-full max-w-3xl">
           <button
-            onClick={() => router.back()}
+            onClick={handleRetour}
             className="mb-6 flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -64,6 +89,23 @@ export default function PropertyDetailsPage() {
           </button>
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <h1 className="text-3xl font-bold mb-4 text-gray-800">{property.title}</h1>
+            {/* Status badge */}
+            {property.status && (
+              <div className="mb-2">
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-semibold 
+                    ${property.status === 'disponible' ? 'bg-green-100 text-green-800' : ''}
+                    ${property.status === 'loue' ? 'bg-yellow-100 text-yellow-800' : ''}
+                    ${property.status === 'vendu' ? 'bg-red-100 text-red-800' : ''}
+                  `}
+                >
+                  {property.status === 'disponible' && 'Disponible'}
+                  {property.status === 'loue' && 'Loué'}
+                  {property.status === 'vendu' && 'Vendu'}
+                  {property.status === 'archive' && 'Archivé'}
+                </span>
+              </div>
+            )}
             <div className="flex items-center text-gray-700 mb-2">
               <MapPin className="h-4 w-4 mr-1" />
               {property.location?.city}, {property.location?.region}

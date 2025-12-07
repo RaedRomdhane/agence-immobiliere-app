@@ -151,7 +151,7 @@ function PhotoUploader({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/svg+xml,image/avif"
           onChange={handleChange}
           className="hidden"
         />

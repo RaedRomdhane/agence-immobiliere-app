@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import LoginForm from '@/components/forms/LoginForm';
 import Header from '@/components/layout/Header';
 import { Building2, Shield, Users, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
@@ -11,6 +11,44 @@ function LoginFormWrapper() {
 }
 
 export default function LoginPage() {
+  const [stats, setStats] = useState({
+    totalProperties: 0,
+    totalReviews: 0,
+    cities: 0
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        
+        // Fetch all properties
+        const propsRes = await fetch(`${apiUrl}/properties`);
+        const propsData = await propsRes.json();
+        const totalProperties = propsData.data?.length || 0;
+        
+        // Calculate unique cities
+        const cities = new Set(
+          (propsData.data || []).map((p: any) => p.city || p.location?.city).filter(Boolean)
+        );
+        
+        // Fetch reviews stats
+        const reviewsRes = await fetch(`${apiUrl}/reviews`);
+        const reviewsData = await reviewsRes.json();
+        const totalReviews = reviewsData.stats?.totalReviews || 0;
+        
+        setStats({
+          totalProperties,
+          totalReviews,
+          cities: cities.size
+        });
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <Header />
@@ -80,15 +118,15 @@ export default function LoginPage() {
         {/* Bottom Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-6 mt-8">
           <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-1">500+</div>
+            <div className="text-3xl font-bold text-white mb-1">{stats.totalProperties}+</div>
             <div className="text-blue-200 text-sm">Biens disponibles</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-1">10K+</div>
+            <div className="text-3xl font-bold text-white mb-1">{stats.totalReviews}+</div>
             <div className="text-blue-200 text-sm">Clients satisfaits</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-1">50+</div>
+            <div className="text-3xl font-bold text-white mb-1">{stats.cities}+</div>
             <div className="text-blue-200 text-sm">Villes couvertes</div>
           </div>
         </div>
@@ -124,11 +162,11 @@ export default function LoginPage() {
           {/* Footer */}
           <p className="text-center text-sm text-gray-500 mt-8">
             En vous connectant, vous acceptez nos{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
+            <a href="/legal/terms" className="text-blue-600 hover:text-blue-700 underline">
               Conditions d&apos;utilisation
             </a>{' '}
             et notre{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
+            <a href="/legal/privacy" className="text-blue-600 hover:text-blue-700 underline">
               Politique de confidentialité
             </a>
           </p>

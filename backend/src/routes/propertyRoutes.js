@@ -12,50 +12,6 @@ const { protect, restrictTo } = require('../middlewares/auth');
  * @desc    Ajouter un bien aux favoris de l'utilisateur connecté
  * @access  Private (user)
  */
-router.post(
-  '/:id/favorite',
-  protect,
-  async (req, res) => {
-    const propertyId = req.params.id;
-    const userId = req.user.id;
-    const Property = require('../models/Property');
-    try {
-      const property = await Property.findById(propertyId);
-      if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
-      if (!property.favorites.includes(userId)) {
-        property.favorites.push(userId);
-        await property.save();
-      }
-      res.json({ success: true, message: 'Ajouté aux favoris' });
-    } catch (err) {
-      res.status(500).json({ success: false, message: 'Erreur ajout favori', error: err.message });
-    }
-  }
-);
-
-/**
- * @route   DELETE /api/properties/:id/favorite
- * @desc    Retirer un bien des favoris de l'utilisateur connecté
- * @access  Private (user)
- */
-router.delete(
-  '/:id/favorite',
-  protect,
-  async (req, res) => {
-    const propertyId = req.params.id;
-    const userId = req.user.id;
-    const Property = require('../models/Property');
-    try {
-      const property = await Property.findById(propertyId);
-      if (!property) return res.status(404).json({ success: false, message: 'Bien non trouvé' });
-      property.favorites = property.favorites.filter(favId => favId.toString() !== userId);
-      await property.save();
-      res.json({ success: true, message: 'Retiré des favoris' });
-    } catch (err) {
-      res.status(500).json({ success: false, message: 'Erreur suppression favori', error: err.message });
-    }
-  }
-);
 
 
 // Configuration du stockage Multer
@@ -78,14 +34,14 @@ const storage = multer.diskStorage({
 
 // Filtre pour valider les types de fichiers
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|webp/;
+  const allowedTypes = /jpeg|jpg|png|webp|gif|bmp|svg|avif/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb(new Error('Seules les images (JPEG, PNG, WebP) sont autorisées'));
+    cb(new Error('Seules les images (JPEG, JPG, PNG, WebP, GIF, BMP, SVG, AVIF) sont autorisées'));
   }
 };
 
@@ -132,51 +88,22 @@ const createPropertyValidation = [
 ];
 
 // Routes
-/**
- * @route   POST /api/properties
- * @desc    Créer un nouveau bien immobilier (Admin uniquement)
- * @access  Private/Admin
- */
-router.post(
-  '/',
-  protect,
-  restrictTo('admin'),
-  upload.array('photos', 10), // Max 10 photos
-  createPropertyValidation,
-  propertyController.createProperty
-);
 
-/**
- * @route   GET /api/properties
- * @desc    Récupérer tous les biens avec filtres et pagination
- * @access  Public
- */
-router.get(
-  '/',
-  propertyController.getProperties
-);
+// Multer config for CSV upload (in-memory)
+const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
-/**
- * @route   GET /api/properties/:id
- * @desc    Récupérer un bien par ID
- * @access  Public
- */
-router.get(
-  '/:id',
-  propertyController.getPropertyById
-);
+// --- ROUTES CSV D'ABORD ---
+router.get('/csv-template', protect, restrictTo('admin'), propertyController.downloadCsvTemplate);
+router.post('/import-csv', protect, restrictTo('admin'), csvUpload.single('file'), propertyController.importPropertiesCsv);
+router.get('/import-csv-errors', protect, restrictTo('admin'), propertyController.downloadLastImportErrorsCsv);
+router.get('/export-csv', protect, restrictTo('admin'), propertyController.exportPropertiesCsv);
 
-/**
- * @route   PUT /api/properties/:id
- * @desc    Modifier un bien immobilier (Admin uniquement)
- * @access  Private/Admin
- */
-router.put(
-  '/:id',
-  protect,
-  restrictTo('admin'),
-  upload.array('photos', 10), // Max 10 photos
-  propertyController.updateProperty
-);
+// --- ROUTES CLASSIQUES ---
+router.post('/', protect, restrictTo('admin'), upload.array('photos', 10), createPropertyValidation, propertyController.createProperty);
+router.get('/', propertyController.getProperties); // Public route - unauthenticated users can view properties
+router.get('/:id', propertyController.getPropertyById);
+router.put('/:id', protect, restrictTo('admin'), upload.array('photos', 10), propertyController.updateProperty);
+router.patch('/:id/archive', protect, restrictTo('admin'), propertyController.archiveProperty);
+router.delete('/:id', protect, restrictTo('admin'), propertyController.deleteProperty);
 
 module.exports = router;

@@ -12,6 +12,7 @@ interface User {
   phone?: string;
   role: string;
   photoURL?: string;
+  favorites?: string[];
 }
 
 interface AuthContextType {
@@ -19,6 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAuthenticated: false,
   logout: () => {},
+  setUser: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -56,8 +59,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
 
           if (response.data.success) {
-            setUser(response.data.data.user);
-            
+            const backendUser = response.data.data.user;
+            setUser(backendUser);
+            // Sync localStorage for user (including favorites)
+            localStorage.setItem('user', JSON.stringify(backendUser));
             // Si l'utilisateur est sur /login ou /register, rediriger vers /
             if (pathname === '/login' || pathname === '/register') {
               router.push('/');
@@ -96,6 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading,
         isAuthenticated: !!user,
         logout,
+        setUser,
       }}
     >
       {children}

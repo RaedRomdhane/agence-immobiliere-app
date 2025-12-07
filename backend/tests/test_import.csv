@@ -1,0 +1,2 @@
+reference,title,description,type,transactionType,price,surface,rooms,bedrooms,bathrooms,floor,location.address,location.city,location.region,location.zipCode,features.parking,features.garden,features.pool,features.elevator,features.balcony,features.terrace,features.furnished,features.airConditioning,features.heating,features.securitySystem
+691a1fc1123839738cd5c5cd,Villa S+4 moderne avec piscine à Gammarth,UPDATED description for test,villa,vente,1850000,450,7,4,5,1,Résidence Les Jardins de Gammarth,Gammarth,Tunis,1057,true,true,true,false,false,true,false,true,true,true
