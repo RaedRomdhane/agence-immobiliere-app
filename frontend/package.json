@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^16.6.0",
     "@hookform/resolvers": "^5.2.2",
     "@types/chart.js": "^2.9.41",
     "@types/stripe": "^8.0.416",
