@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const recentActivityController = require('../controllers/recentActivityController');
+const qrCodeController = require('../controllers/qrCodeController');
 const { protect, restrictTo } = require('../middlewares/auth');
 
 /**
@@ -34,5 +35,10 @@ router.delete('/users/:id', protect, adminController.deleteUser);
 // @desc    Obtenir les activités récentes pour le dashboard admin
 // @access  Private/Admin
 router.get('/recent-activities', protect, restrictTo('admin'), recentActivityController.getRecentActivities);
+
+// @route   POST /api/admin/regenerate-qrcodes
+// @desc    Regenerate QR codes for all properties with production URL
+// @access  Private/Admin
+router.post('/regenerate-qrcodes', protect, restrictTo('admin'), qrCodeController.regenerateAllQRCodes);
 
 module.exports = router;
