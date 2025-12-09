@@ -19,21 +19,19 @@ RUN addgroup -g 1001 -S nodejs && \
 # Créer le répertoire de l'application
 WORKDIR /app
 
-# Copier les fichiers de dépendances
-COPY package*.json ./
+# Copier TOUS les fichiers d'abord
+COPY . .
 
-# Installer les dépendances
-RUN npm ci --only=production=false && \
+# Installer les dépendances (avec devDependencies pour le développement)
+# --legacy-peer-deps nécessaire pour React 19 avec @hello-pangea/dnd
+RUN npm install --legacy-peer-deps && \
     npm cache clean --force
 
-# Changer le propriétaire des fichiers
+# Changer le propriétaire de TOUS les fichiers (y compris .next)
 RUN chown -R nodejs:nodejs /app
 
 # Passer à l'utilisateur non-root
 USER nodejs
-
-# Copier le reste du code
-COPY --chown=nodejs:nodejs . .
 
 # Exposer le port Next.js
 EXPOSE 3000

@@ -67,13 +67,22 @@ export default function AdminDashboard() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
         const headers: any = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        const res = await axios.get(`${apiUrl}/contact/unread-count`, { headers });
-        setUnreadMessages(res.data?.count || 0);
-      } catch {
+        // Use admin-specific endpoint for unread count
+        const res = await axios.get(`${apiUrl}/admin/contact/unread-count`, { headers });
+        console.log('[AdminDashboard] Unread messages response:', res.data);
+        const count = res.data?.count || 0;
+        setUnreadMessages(count);
+        console.log('[AdminDashboard] Unread messages count set to:', count);
+      } catch (error) {
+        console.error('[AdminDashboard] Error fetching unread messages:', error);
         setUnreadMessages(0);
       }
     }
     fetchUnreadMessages();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadMessages, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch alerts count (replace endpoint with your real one if needed)
@@ -146,13 +155,26 @@ export default function AdminDashboard() {
         console.log('rentedRes', rentedRes);
         // Debug: print userStats to verify structure
         console.log('[AdminDashboard] userStats:', userStats);
+        
+        // Fetch pending appointments count
+        let pendingCount = 0;
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+          const headers: any = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const pendingRes = await axios.get(`${apiUrl}/appointments/pending-count`, { headers });
+          pendingCount = pendingRes.data?.count || 0;
+        } catch (err) {
+          console.error('[AdminDashboard] Failed to fetch pending appointments:', err);
+        }
+
         setStats({
           totalUsers: userStats?.total || 0,
           newUsersThisMonth: 0, // Placeholder, implement if backend provides
           totalProperties: propertyRes?.totalItems || 0,
           soldProperties: soldRes?.totalItems || 0,
           rentedProperties: rentedRes?.totalItems || 0,
-          pendingApprovals: 0, // Placeholder, implement if backend provides
+          pendingApprovals: pendingCount,
           revenueThisMonth: (userStats?.monthlyRevenue ?? 0).toLocaleString('fr-TN') + ' TND',
           revenueChangePercent: userStats?.revenueChangePercent ?? 0,
         });
@@ -511,7 +533,7 @@ export default function AdminDashboard() {
           <div className="max-w-[95%] mx-auto px-2 sm:px-4 lg:px-6">
             <h2 className="text-2xl font-bold text-white mb-8">Accès Rapide</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/admin/users/pending" className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-center transition-all group border border-gray-700">
+              <Link href="/admin/appointments" className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-center transition-all group border border-gray-700">
                 <UserCheck className="h-8 w-8 text-orange-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                 <p className="text-white text-sm font-medium">Validations</p>
                 <p className="text-gray-400 text-xs mt-1">{stats.pendingApprovals} en attente</p>

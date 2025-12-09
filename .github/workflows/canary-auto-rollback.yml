@@ -1,0 +1,209 @@
+name: Canary Auto-Rollback Monitor
+
+on:
+  schedule:
+    # Check every 5 minutes while canary is active
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+env:
+  MAX_ERROR_RATE: 5.0
+  MAX_LATENCY_P95: 2.0
+  ERROR_RATE_INCREASE_THRESHOLD: 3.0
+  LATENCY_INCREASE_THRESHOLD: 1.5
+
+jobs:
+  check-canary-status:
+    name: Check Canary Status
+    runs-on: ubuntu-latest
+    outputs:
+      canary_active: ${{ steps.check.outputs.active }}
+      should_rollback: ${{ steps.analyze.outputs.rollback }}
+    
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Check if canary is active
+        id: check
+        run: |
+          CANARY_PODS=$(kubectl get pods -n production -l version=canary --no-headers 2>/dev/null | wc -l || echo "0")
+          
+          if [ "$CANARY_PODS" -gt 0 ]; then
+            echo "active=true" >> $GITHUB_OUTPUT
+            echo "✅ Canary deployment active ($CANARY_PODS pods)"
+          else
+            echo "active=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No canary deployment active"
+          fi
+      
+      - name: Query Prometheus metrics
+        id: metrics
+        if: steps.check.outputs.active == 'true'
+        run: |
+          PROMETHEUS_URL="http://prometheus:9090"
+          
+          # Canary metrics (last 5 minutes)
+          CANARY_ERROR_RATE=$(kubectl run prom-query-canary --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=sum(rate(http_request_duration_seconds_count{version=\"canary\",code=~\"5..\"}[5m]))/sum(rate(http_request_duration_seconds_count{version=\"canary\"}[5m]))*100" \
+            | grep -o '[0-9.]*' | head -1 || echo "0")
+          
+          CANARY_LATENCY_P95=$(kubectl run prom-query-canary-lat --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket{version=\"canary\"}[5m]))by(le))" \
+            | grep -o '[0-9.]*' | head -1 || echo "0")
+          
+          # Stable metrics (last 5 minutes)
+          STABLE_ERROR_RATE=$(kubectl run prom-query-stable --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=sum(rate(http_request_duration_seconds_count{version!=\"canary\",code=~\"5..\"}[5m]))/sum(rate(http_request_duration_seconds_count{version!=\"canary\"}[5m]))*100" \
+            | grep -o '[0-9.]*' | head -1 || echo "0")
+          
+          STABLE_LATENCY_P95=$(kubectl run prom-query-stable-lat --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket{version!=\"canary\"}[5m]))by(le))" \
+            | grep -o '[0-9.]*' | head -1 || echo "0")
+          
+          echo "canary_error_rate=$CANARY_ERROR_RATE" >> $GITHUB_OUTPUT
+          echo "canary_latency_p95=$CANARY_LATENCY_P95" >> $GITHUB_OUTPUT
+          echo "stable_error_rate=$STABLE_ERROR_RATE" >> $GITHUB_OUTPUT
+          echo "stable_latency_p95=$STABLE_LATENCY_P95" >> $GITHUB_OUTPUT
+          
+          echo "📊 Canary Metrics:"
+          echo "  Error Rate: ${CANARY_ERROR_RATE}%"
+          echo "  P95 Latency: ${CANARY_LATENCY_P95}s"
+          echo "📊 Stable Metrics:"
+          echo "  Error Rate: ${STABLE_ERROR_RATE}%"
+          echo "  P95 Latency: ${STABLE_LATENCY_P95}s"
+      
+      - name: Analyze metrics and decide rollback
+        id: analyze
+        if: steps.check.outputs.active == 'true'
+        run: |
+          CANARY_ERROR=${{ steps.metrics.outputs.canary_error_rate }}
+          CANARY_LAT=${{ steps.metrics.outputs.canary_latency_p95 }}
+          STABLE_ERROR=${{ steps.metrics.outputs.stable_error_rate }}
+          STABLE_LAT=${{ steps.metrics.outputs.stable_latency_p95 }}
+          
+          ROLLBACK="false"
+          REASON=""
+          
+          # Check absolute thresholds
+          if (( $(echo "$CANARY_ERROR > $MAX_ERROR_RATE" | bc -l) )); then
+            ROLLBACK="true"
+            REASON="Canary error rate ${CANARY_ERROR}% exceeds absolute threshold ${MAX_ERROR_RATE}%"
+          fi
+          
+          if (( $(echo "$CANARY_LAT > $MAX_LATENCY_P95" | bc -l) )); then
+            ROLLBACK="true"
+            REASON="${REASON}\nCanary P95 latency ${CANARY_LAT}s exceeds absolute threshold ${MAX_LATENCY_P95}s"
+          fi
+          
+          # Check relative thresholds (canary vs stable)
+          ERROR_DIFF=$(echo "$CANARY_ERROR - $STABLE_ERROR" | bc -l)
+          if (( $(echo "$ERROR_DIFF > $ERROR_RATE_INCREASE_THRESHOLD" | bc -l) )); then
+            ROLLBACK="true"
+            REASON="${REASON}\nCanary error rate ${ERROR_DIFF}% higher than stable (threshold: ${ERROR_RATE_INCREASE_THRESHOLD}%)"
+          fi
+          
+          LAT_RATIO=$(echo "$CANARY_LAT / $STABLE_LAT" | bc -l)
+          if (( $(echo "$LAT_RATIO > $LATENCY_INCREASE_THRESHOLD" | bc -l) )); then
+            ROLLBACK="true"
+            REASON="${REASON}\nCanary latency ${LAT_RATIO}x higher than stable (threshold: ${LATENCY_INCREASE_THRESHOLD}x)"
+          fi
+          
+          echo "rollback=$ROLLBACK" >> $GITHUB_OUTPUT
+          echo "reason<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$REASON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ "$ROLLBACK" == "true" ]; then
+            echo "🚨 ROLLBACK TRIGGERED:"
+            echo -e "$REASON"
+          else
+            echo "✅ Canary metrics healthy"
+          fi
+  
+  execute-rollback:
+    name: Execute Emergency Rollback
+    runs-on: ubuntu-latest
+    needs: check-canary-status
+    if: needs.check-canary-status.outputs.canary_active == 'true' && needs.check-canary-status.outputs.should_rollback == 'true'
+    environment:
+      name: production-canary
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Disable canary immediately
+        run: |
+          echo "🚨 EMERGENCY ROLLBACK INITIATED"
+          
+          # Disable canary routing
+          helm upgrade agence-immobiliere ./infrastructure/k8s/helm/agence-immobiliere \
+            --namespace production \
+            --reuse-values \
+            --set canary.enabled=false \
+            --wait --timeout=2m
+      
+      - name: Verify rollback
+        run: |
+          echo "Verifying canary removal..."
+          
+          # Wait for canary pods to terminate
+          kubectl wait --for=delete pod \
+            -l app.kubernetes.io/component=backend,version=canary \
+            -n production \
+            --timeout=2m || true
+          
+          # Check stable pods are healthy
+          kubectl rollout status deployment/agence-immobiliere-backend -n production --timeout=5m
+          
+          echo "✅ Rollback complete, stable version running"
+      
+      - name: Create rollback incident
+        run: |
+          echo "📝 Creating incident report..."
+          
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          cat > rollback-incident-${TIMESTAMP}.txt << EOF
+          CANARY ROLLBACK INCIDENT REPORT
+          ================================
+          
+          Timestamp: ${TIMESTAMP}
+          Trigger: Automated monitoring detected metric threshold violations
+          
+          Reason:
+          ${{ needs.check-canary-status.outputs.reason }}
+          
+          Actions Taken:
+          1. Disabled canary routing (trafficWeight set to 0)
+          2. Removed canary deployment
+          3. Verified stable version health
+          
+          Status: Rolled back successfully
+          EOF
+          
+          cat rollback-incident-${TIMESTAMP}.txt
+      
+      - name: Send alert notification
+        run: |
+          echo "🚨 ALERT: Canary deployment automatically rolled back"
+          echo "Reason: Metric thresholds exceeded"
+          echo "All traffic now routed to stable version"
+          echo "Review logs and incident report for details"

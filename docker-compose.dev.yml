@@ -62,7 +62,7 @@ services:
     container_name: agence-frontend-dev
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:5000/api

@@ -1,28 +1,12 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('../../src/app');
 const User = require('../../src/models/User');
 
-let mongoServer;
-
 describe('Tests d\'Intégration - Authentification', () => {
-  beforeAll(async () => {
-    // Créer une base de données MongoDB en mémoire
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
-  });
-
   afterEach(async () => {
     // Nettoyer la base de données après chaque test
     await User.deleteMany({});
-  });
-
-  afterAll(async () => {
-    // Fermer la connexion et arrêter le serveur MongoDB
-    await mongoose.disconnect();
-    await mongoServer.stop();
   });
 
   describe('POST /api/auth/register', () => {

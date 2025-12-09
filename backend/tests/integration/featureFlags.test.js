@@ -1,31 +1,17 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('../../src/app');
 const FeatureFlag = require('../../src/models/FeatureFlag');
 const User = require('../../src/models/User');
 const jwt = require('jsonwebtoken');
 
-let mongoServer;
 let adminToken;
 let adminUser;
 let regularToken;
 let regularUser;
 
-const TEST_JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-feature-flags-testing';
-
 describe('Feature Flags API', () => {
   beforeAll(async () => {
-    // Disconnect from any existing connection
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-    
-    // Create in-memory MongoDB instance
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
-    
     // Create admin user
     adminUser = await User.create({
       firstName: 'Admin',
@@ -36,7 +22,7 @@ describe('Feature Flags API', () => {
       role: 'admin',
       isActive: true,
     });
-    adminToken = jwt.sign({ id: adminUser._id }, TEST_JWT_SECRET, { expiresIn: '1h' });
+    adminToken = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     
     // Create regular user
     regularUser = await User.create({
@@ -48,7 +34,7 @@ describe('Feature Flags API', () => {
       role: 'client',
       isActive: true,
     });
-    regularToken = jwt.sign({ id: regularUser._id }, TEST_JWT_SECRET, { expiresIn: '1h' });
+    regularToken = jwt.sign({ id: regularUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     
     // Create admin-panel feature flag (required for admin routes)
     await FeatureFlag.create({
@@ -65,8 +51,6 @@ describe('Feature Flags API', () => {
   afterAll(async () => {
     await FeatureFlag.deleteMany({});
     await User.deleteMany({});
-    await mongoose.disconnect();
-    await mongoServer.stop();
   });
   
   afterEach(async () => {

@@ -4,29 +4,14 @@
  */
 const request = require('supertest');
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('../../src/app');
 const { User } = require('../../src/models');
 
-let mongoServer;
-
 // TODO: Réactiver ces tests après implémentation complète des fonctionnalités User (AW-14/15)
 describe.skip('API Users - Tests Intégration', () => {
-  // Setup: Créer une base de données en mémoire
-  beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    await mongoose.connect(mongoServer.getUri());
-  });
-
   // Cleanup: Nettoyer entre chaque test
   afterEach(async () => {
     await User.deleteMany({});
-  });
-
-  // Teardown: Fermer les connexions
-  afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
   });
 
   describe('POST /api/users', () => {

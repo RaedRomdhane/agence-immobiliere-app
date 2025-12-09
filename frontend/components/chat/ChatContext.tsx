@@ -42,23 +42,49 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOpen, setIsOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isTransferRequested, setIsTransferRequested] = useState(false);
+  const [lastUserId, setLastUserId] = useState<string | null>(null);
 
-  // Load chat history from localStorage
+  // Load chat history from localStorage and handle user changes
   useEffect(() => {
-    if (user?.id) {
-      const historyKey = `chatHistory_${user.id}`;
-      const savedHistory = localStorage.getItem(historyKey);
-      if (savedHistory) {
-        try {
-          const parsed = JSON.parse(savedHistory);
-          setMessages(parsed.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          })));
-        } catch (e) {
-          console.error('Failed to load chat history:', e);
-        }
+    if (!user?.id) {
+      // User logged out - clear everything
+      console.log('[ChatContext] User logged out - clearing messages');
+      setMessages([]);
+      setLastUserId(null);
+      setIsTransferRequested(false);
+      return;
+    }
+
+    // Check if user changed
+    if (lastUserId && user.id !== lastUserId) {
+      console.log('[ChatContext] User changed from', lastUserId, 'to', user.id, '- clearing old messages');
+      setMessages([]);
+      setIsTransferRequested(false);
+    }
+
+    // Update last user ID
+    setLastUserId(user.id);
+
+    // Load this user's chat history
+    const historyKey = `chatHistory_${user.id}`;
+    console.log('[ChatContext] Loading chat history for user:', user.id, user.firstName, user.lastName);
+    const savedHistory = localStorage.getItem(historyKey);
+    
+    if (savedHistory) {
+      try {
+        const parsed = JSON.parse(savedHistory);
+        console.log('[ChatContext] Loaded', parsed.length, 'messages from localStorage');
+        setMessages(parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        })));
+      } catch (e) {
+        console.error('[ChatContext] Failed to load chat history:', e);
+        setMessages([]);
       }
+    } else {
+      console.log('[ChatContext] No saved history found for this user');
+      setMessages([]);
     }
   }, [user?.id]);
 
@@ -66,6 +92,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user?.id && messages.length > 0) {
       const historyKey = `chatHistory_${user.id}`;
+      console.log('[ChatContext] Saving', messages.length, 'messages for user:', user.id);
       localStorage.setItem(historyKey, JSON.stringify(messages));
     }
   }, [messages, user?.id]);

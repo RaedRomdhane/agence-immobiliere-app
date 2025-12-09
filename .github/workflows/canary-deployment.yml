@@ -1,0 +1,277 @@
+name: Canary Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Canary version tag (e.g., v1.1.0-canary)'
+        required: true
+        type: string
+      traffic_weight:
+        description: 'Initial traffic percentage (1-50%)'
+        required: true
+        type: number
+        default: 10
+      auto_promote:
+        description: 'Auto-promote if metrics pass'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
+
+jobs:
+  # Deploy canary
+  deploy-canary:
+    name: Deploy Canary
+    runs-on: ubuntu-latest
+    environment:
+      name: production-canary
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Deploy canary
+        run: |
+          helm upgrade agence-immobiliere ./infrastructure/k8s/helm/agence-immobiliere \
+            --namespace production \
+            --reuse-values \
+            --set canary.enabled=true \
+            --set canary.trafficWeight=${{ inputs.traffic_weight }} \
+            --set backend.canary.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }} \
+            --set backend.canary.image.tag=${{ inputs.version }} \
+            --wait
+      
+      - name: Wait for canary pods
+        run: |
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/component=backend,version=canary \
+            -n production \
+            --timeout=5m
+      
+      - name: Initial health check
+        run: |
+          sleep 30
+          kubectl run canary-health-check --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -f http://agence-immobiliere-backend-canary:5000/health
+      
+      - name: Run smoke tests
+        run: |
+          # Apply smoke test job
+          kubectl apply -f infrastructure/k8s/helm/agence-immobiliere/templates/canary-smoke-test.yaml -n production
+          
+          # Wait for job to complete
+          kubectl wait --for=condition=complete job/agence-immobiliere-canary-smoke-test -n production --timeout=5m
+          
+          # Show test results
+          kubectl logs job/agence-immobiliere-canary-smoke-test -n production
+          
+          # Cleanup
+          kubectl delete job agence-immobiliere-canary-smoke-test -n production
+  
+  # Monitor canary for 15 minutes
+  monitor-canary:
+    name: Monitor Canary Metrics
+    runs-on: ubuntu-latest
+    needs: deploy-canary
+    outputs:
+      should_promote: ${{ steps.analyze.outputs.promote }}
+      error_rate: ${{ steps.analyze.outputs.error_rate }}
+      latency_p95: ${{ steps.analyze.outputs.latency_p95 }}
+    
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Monitor for 15 minutes
+        run: |
+          echo "Monitoring canary deployment for 15 minutes..."
+          echo "Start time: $(date)"
+          
+          for i in {1..15}; do
+            echo "Minute $i/15"
+            
+            # Check pod status
+            kubectl get pods -n production -l version=canary
+            
+            # Get recent logs
+            kubectl logs -n production -l version=canary --tail=20 --since=1m || true
+            
+            sleep 60
+          done
+          
+          echo "Monitoring complete: $(date)"
+      
+      - name: Query Prometheus metrics
+        id: metrics
+        run: |
+          # Query Prometheus for canary metrics
+          PROMETHEUS_URL="http://prometheus:9090"
+          
+          # Error rate (last 15 minutes)
+          ERROR_RATE=$(kubectl run prom-query --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=sum(rate(http_request_duration_seconds_count{version=\"canary\",code=~\"5..\"}[15m]))/sum(rate(http_request_duration_seconds_count{version=\"canary\"}[15m]))*100" \
+            | grep -o '"value":\[.*,".*"\]' | grep -o '[0-9.]*' | tail -1 || echo "0")
+          
+          # P95 latency
+          LATENCY_P95=$(kubectl run prom-query --image=curlimages/curl:latest --rm -i --restart=Never -n production -- \
+            curl -s "${PROMETHEUS_URL}/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket{version=\"canary\"}[15m]))by(le))" \
+            | grep -o '"value":\[.*,".*"\]' | grep -o '[0-9.]*' | tail -1 || echo "0")
+          
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+          echo "latency_p95=$LATENCY_P95" >> $GITHUB_OUTPUT
+          
+          echo "Canary Error Rate: ${ERROR_RATE}%"
+          echo "Canary P95 Latency: ${LATENCY_P95}s"
+      
+      - name: Analyze metrics and decide
+        id: analyze
+        run: |
+          ERROR_RATE=${{ steps.metrics.outputs.error_rate }}
+          LATENCY_P95=${{ steps.metrics.outputs.latency_p95 }}
+          
+          # Thresholds
+          MAX_ERROR_RATE=5.0
+          MAX_LATENCY_P95=2.0
+          
+          PROMOTE="true"
+          
+          # Check error rate
+          if (( $(echo "$ERROR_RATE > $MAX_ERROR_RATE" | bc -l) )); then
+            echo "Error rate ${ERROR_RATE}% exceeds threshold ${MAX_ERROR_RATE}%"
+            PROMOTE="false"
+          fi
+          
+          # Check latency
+          if (( $(echo "$LATENCY_P95 > $MAX_LATENCY_P95" | bc -l) )); then
+            echo "P95 latency ${LATENCY_P95}s exceeds threshold ${MAX_LATENCY_P95}s"
+            PROMOTE="false"
+          fi
+          
+          echo "promote=$PROMOTE" >> $GITHUB_OUTPUT
+          
+          if [ "$PROMOTE" == "true" ]; then
+            echo "✅ Canary metrics passed all thresholds"
+          else
+            echo "❌ Canary metrics failed thresholds"
+          fi
+  
+  # Rollback if metrics fail
+  rollback-canary:
+    name: Rollback Canary
+    runs-on: ubuntu-latest
+    needs: monitor-canary
+    if: needs.monitor-canary.outputs.should_promote == 'false'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Remove canary deployment
+        run: |
+          helm upgrade agence-immobiliere ./infrastructure/k8s/helm/agence-immobiliere \
+            --namespace production \
+            --reuse-values \
+            --set canary.enabled=false \
+            --wait
+      
+      - name: Verify rollback
+        run: |
+          kubectl get pods -n production -l version=canary
+          echo "Canary deployment removed"
+      
+      - name: Notify rollback
+        run: |
+          echo "🔴 Canary deployment rolled back due to failed metrics:"
+          echo "Error Rate: ${{ needs.monitor-canary.outputs.error_rate }}%"
+          echo "P95 Latency: ${{ needs.monitor-canary.outputs.latency_p95 }}s"
+  
+  # Gradual promotion (10% -> 50% -> 100%)
+  promote-canary:
+    name: Promote Canary
+    runs-on: ubuntu-latest
+    needs: monitor-canary
+    if: needs.monitor-canary.outputs.should_promote == 'true' && inputs.auto_promote
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Promote to 50%
+        run: |
+          echo "Promoting canary to 50% traffic..."
+          helm upgrade agence-immobiliere ./infrastructure/k8s/helm/agence-immobiliere \
+            --namespace production \
+            --reuse-values \
+            --set canary.trafficWeight=50 \
+            --wait
+          
+          echo "Monitoring at 50% for 10 minutes..."
+          sleep 600
+      
+      - name: Promote to 100%
+        run: |
+          echo "Promoting canary to 100% traffic..."
+          
+          # Update stable deployment to canary version
+          helm upgrade agence-immobiliere ./infrastructure/k8s/helm/agence-immobiliere \
+            --namespace production \
+            --reuse-values \
+            --set backend.image.tag=${{ inputs.version }} \
+            --set canary.enabled=false \
+            --wait
+      
+      - name: Verify full promotion
+        run: |
+          kubectl rollout status deployment/agence-immobiliere-backend -n production --timeout=5m
+          kubectl get pods -n production -l app.kubernetes.io/component=backend
+      
+      - name: Notify promotion
+        run: |
+          echo "✅ Canary successfully promoted to 100%"
+          echo "Version: ${{ inputs.version }}"
+          echo "Error Rate: ${{ needs.monitor-canary.outputs.error_rate }}%"
+          echo "P95 Latency: ${{ needs.monitor-canary.outputs.latency_p95 }}s"

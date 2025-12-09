@@ -1,18 +1,51 @@
 const Stripe = require('stripe');
 const { Property } = require('../models');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-11-17.clover',
-});
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-11-17.clover',
+    })
+  : null;
 
 exports.handleStripeWebhook = async (req, res) => {
+  if (!stripe) {
+    console.error('[WEBHOOK ERROR] Stripe not configured');
+    return res.status(503).json({ error: 'Stripe not configured' });
+  }
+  
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  console.log('[WEBHOOK] Received webhook event');
+  console.log('[WEBHOOK] Signature present:', !!sig);
+  console.log('[WEBHOOK] Secret configured:', !!endpointSecret);
+  
   let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+  
+  // En développement avec Stripe CLI, on peut skip la vérification de signature
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[WEBHOOK] Development mode - parsing body directly');
+    try {
+      event = JSON.parse(req.body.toString());
+      console.log('[WEBHOOK] ✓ Event parsed:', event.type);
+    } catch (err) {
+      console.error('[WEBHOOK ERROR] Failed to parse body:', err.message);
+      return res.status(400).send('Invalid JSON body');
+    }
+  } else {
+    // En production, on vérifie la signature
+    if (!endpointSecret) {
+      console.error('[WEBHOOK ERROR] STRIPE_WEBHOOK_SECRET not configured in .env');
+      return res.status(400).send('Webhook secret not configured');
+    }
+    
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+      console.log('[WEBHOOK] ✓ Event verified:', event.type);
+    } catch (err) {
+      console.error('[WEBHOOK ERROR] Signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
   }
 
   if (event.type === 'checkout.session.completed') {

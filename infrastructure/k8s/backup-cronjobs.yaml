@@ -1,0 +1,243 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-backup
+  namespace: production
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: mongodb-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: mongo:7.0
+            command:
+            - /bin/bash
+            - /scripts/backup-mongodb.sh
+            env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+            - name: MONGODB_DATABASE
+              value: "agence-immobiliere"
+            - name: BACKUP_DIR
+              value: "/backups/mongodb"
+            - name: AZURE_STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-name
+            - name: AZURE_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-key
+            - name: AZURE_CONTAINER
+              value: "backups"
+            - name: LOCAL_RETENTION_DAYS
+              value: "7"
+            - name: WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-webhooks
+                  key: slack-webhook
+                  optional: true
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+            - name: backup-storage
+              mountPath: /backups
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "200m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: backup-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: media-backup
+  namespace: production
+spec:
+  schedule: "0 1,7,13,19 * * *"  # Every 6 hours, offset by 1h
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: media-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: alpine:3.18
+            command:
+            - /bin/bash
+            - /scripts/backup-media.sh
+            env:
+            - name: MEDIA_DIR
+              value: "/app/uploads"
+            - name: BACKUP_DIR
+              value: "/backups/media"
+            - name: AZURE_STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-name
+            - name: AZURE_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-key
+            - name: AZURE_CONTAINER
+              value: "backups"
+            - name: LOCAL_RETENTION_DAYS
+              value: "7"
+            - name: WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-webhooks
+                  key: slack-webhook
+                  optional: true
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+            - name: backup-storage
+              mountPath: /backups
+            - name: media-storage
+              mountPath: /app/uploads
+              readOnly: true
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "200m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: backup-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+          - name: media-storage
+            persistentVolumeClaim:
+              claimName: media-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-health-check
+  namespace: production
+spec:
+  schedule: "0 8 * * *"  # Daily at 8 AM
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 7
+  concurrencyPolicy: Allow
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: backup-health-check
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: health-check
+            image: alpine:3.18
+            command:
+            - /bin/bash
+            - /scripts/backup-health-check.sh
+            env:
+            - name: BACKUP_DIR
+              value: "/backups"
+            - name: MAX_AGE_HOURS
+              value: "8"
+            - name: MIN_BACKUPS
+              value: "2"
+            - name: WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-webhooks
+                  key: slack-webhook
+                  optional: true
+            - name: AZURE_STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage
+                  key: account-name
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+            - name: backup-storage
+              mountPath: /backups
+              readOnly: true
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: backup-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: production
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: azure-file
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: production
+data:
+  backup-mongodb.sh: |
+    # Include the content of backup-mongodb.sh here
+    # (Copy from the file we created)
+  backup-media.sh: |
+    # Include the content of backup-media.sh here
+  backup-health-check.sh: |
+    # Include the content of backup-health-check.sh here

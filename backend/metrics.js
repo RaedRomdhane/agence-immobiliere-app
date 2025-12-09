@@ -1,4 +1,5 @@
 const client = require('prom-client');
+const mongoose = require('mongoose');
 
 // Create a registry which we will expose
 const register = new client.Registry();
@@ -15,6 +16,25 @@ const httpRequestDurationSeconds = new client.Histogram({
 });
 
 register.registerMetric(httpRequestDurationSeconds);
+
+// MongoDB connection gauge
+const mongodbConnectionsGauge = new client.Gauge({
+  name: 'mongodb_connections_current',
+  help: 'Current number of MongoDB connections',
+  async collect() {
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const adminDb = mongoose.connection.db.admin();
+        const serverStatus = await adminDb.serverStatus();
+        this.set(serverStatus.connections.current || 0);
+      }
+    } catch (err) {
+      console.debug('Failed to collect MongoDB metrics:', err.message);
+    }
+  }
+});
+
+register.registerMetric(mongodbConnectionsGauge);
 
 function metricsMiddleware(req, res, next) {
   const start = process.hrtime();

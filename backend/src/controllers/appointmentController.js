@@ -5,7 +5,7 @@ exports.getUserAppointments = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Non autorisé' });
     }
     const appointments = await Appointment.find({ user: req.user._id })
-      .populate('property', 'title type city price status')
+      .populate('property', 'title type location price status')
       .sort({ requestedAt: -1 });
     res.json({ success: true, data: appointments });
   } catch (err) {
@@ -111,6 +111,20 @@ exports.getAllAppointments = async (req, res) => {
     res.status(500).json({ success: false, message: 'Erreur lors de la récupération des rendez-vous.', error: err.message });
   }
 };
+
+// GET /api/appointments/pending-count - Admin: count pending appointments
+exports.getPendingCount = async (req, res) => {
+  try {
+    // Only allow admin
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: "Accès refusé" });
+    }
+    const count = await Appointment.countDocuments({ status: 'pending' });
+    res.json({ success: true, count });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors du comptage.', error: err.message });
+  }
+};
 const Appointment = require('../models/Appointment');
 const Property = require('../models/Property');
 const User = require('../models/User');
@@ -133,9 +147,15 @@ exports.requestAppointment = async (req, res) => {
       property: propertyId,
       message: message || '',
     });
+    
+    // Get user name for notification
+    const userName = req.user.firstName && req.user.lastName 
+      ? `${req.user.firstName} ${req.user.lastName}`
+      : req.user.email;
+    
     // Notify all admins
     await dispatchAdminNotification(
-      `Nouvelle demande de rendez-vous pour le bien "${property.title}".", rendez-vous #${appointment._id}`,
+      `Nouvelle demande de rendez-vous pour le bien "${property.title}", par ${userName}, rendez-vous #${appointment._id}`,
       'appointment_request'
     );
     res.status(201).json({ success: true, data: appointment });

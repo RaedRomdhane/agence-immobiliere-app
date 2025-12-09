@@ -1,0 +1,175 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "agence-immobiliere.fullname" . }}-canary-smoke-test
+  labels:
+    {{- include "agence-immobiliere.labels" . | nindent 4 }}
+    app.kubernetes.io/component: canary-test
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: canary-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke-test
+          image: curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              echo "========================================="
+              echo "Canary Smoke Test Suite"
+              echo "========================================="
+              echo ""
+              
+              CANARY_URL="http://{{ include "agence-immobiliere.fullname" . }}-backend-canary:5000"
+              STABLE_URL="http://{{ include "agence-immobiliere.fullname" . }}-backend:5000"
+              
+              echo "Testing Canary: $CANARY_URL"
+              echo "Testing Stable: $STABLE_URL"
+              echo ""
+              
+              # Test 1: Health Check
+              echo "Test 1: Health Check"
+              echo "---------------------"
+              
+              echo "Canary health check..."
+              CANARY_HEALTH=$(curl -s -w "\n%{http_code}" "$CANARY_URL/health")
+              CANARY_HEALTH_CODE=$(echo "$CANARY_HEALTH" | tail -n1)
+              CANARY_HEALTH_BODY=$(echo "$CANARY_HEALTH" | sed '$d')
+              
+              if [ "$CANARY_HEALTH_CODE" != "200" ]; then
+                echo "❌ FAILED: Canary health check returned $CANARY_HEALTH_CODE"
+                exit 1
+              fi
+              echo "✅ PASSED: Canary health check OK"
+              echo "Response: $CANARY_HEALTH_BODY"
+              echo ""
+              
+              # Test 2: Compare Response Times
+              echo "Test 2: Response Time Comparison"
+              echo "--------------------------------"
+              
+              echo "Testing canary response time..."
+              CANARY_TIME=$(curl -s -w "%{time_total}" -o /dev/null "$CANARY_URL/api/properties?limit=10")
+              
+              echo "Testing stable response time..."
+              STABLE_TIME=$(curl -s -w "%{time_total}" -o /dev/null "$STABLE_URL/api/properties?limit=10")
+              
+              echo "Canary response time: ${CANARY_TIME}s"
+              echo "Stable response time: ${STABLE_TIME}s"
+              
+              # Check if canary is more than 2x slower
+              RATIO=$(awk "BEGIN {print $CANARY_TIME / $STABLE_TIME}")
+              if (( $(awk "BEGIN {print ($RATIO > 2.0)}") )); then
+                echo "⚠️  WARNING: Canary is ${RATIO}x slower than stable"
+              else
+                echo "✅ PASSED: Response times acceptable"
+              fi
+              echo ""
+              
+              # Test 3: API Endpoints
+              echo "Test 3: Critical Endpoints"
+              echo "--------------------------"
+              
+              # Test properties endpoint
+              echo "Testing /api/properties..."
+              PROPERTIES_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$CANARY_URL/api/properties?limit=1")
+              if [ "$PROPERTIES_CODE" = "200" ] || [ "$PROPERTIES_CODE" = "404" ]; then
+                echo "✅ PASSED: Properties endpoint returned $PROPERTIES_CODE"
+              else
+                echo "❌ FAILED: Properties endpoint returned $PROPERTIES_CODE"
+                exit 1
+              fi
+              
+              # Test users endpoint (should require auth, 401 is OK)
+              echo "Testing /api/users..."
+              USERS_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$CANARY_URL/api/users")
+              if [ "$USERS_CODE" = "200" ] || [ "$USERS_CODE" = "401" ] || [ "$USERS_CODE" = "404" ]; then
+                echo "✅ PASSED: Users endpoint returned $USERS_CODE"
+              else
+                echo "❌ FAILED: Users endpoint returned $USERS_CODE"
+                exit 1
+              fi
+              
+              # Test metrics endpoint
+              echo "Testing /metrics..."
+              METRICS_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$CANARY_URL/metrics")
+              METRICS_BODY=$(curl -s "$CANARY_URL/metrics")
+              if [ "$METRICS_CODE" = "200" ]; then
+                echo "✅ PASSED: Metrics endpoint returned $METRICS_CODE"
+                
+                # Verify version label is present
+                if echo "$METRICS_BODY" | grep -q 'version="canary"'; then
+                  echo "✅ PASSED: Canary version label found in metrics"
+                else
+                  echo "⚠️  WARNING: Canary version label not found in metrics"
+                fi
+              else
+                echo "❌ FAILED: Metrics endpoint returned $METRICS_CODE"
+                exit 1
+              fi
+              echo ""
+              
+              # Test 4: Error Rate Check
+              echo "Test 4: Error Rate Validation"
+              echo "-----------------------------"
+              
+              TOTAL_REQUESTS=20
+              ERROR_COUNT=0
+              
+              echo "Sending $TOTAL_REQUESTS requests to canary..."
+              for i in $(seq 1 $TOTAL_REQUESTS); do
+                STATUS=$(curl -s -w "%{http_code}" -o /dev/null "$CANARY_URL/health")
+                if [ "$STATUS" != "200" ]; then
+                  ERROR_COUNT=$((ERROR_COUNT + 1))
+                fi
+              done
+              
+              ERROR_RATE=$(awk "BEGIN {print ($ERROR_COUNT / $TOTAL_REQUESTS) * 100}")
+              echo "Error rate: ${ERROR_RATE}% ($ERROR_COUNT/$TOTAL_REQUESTS failed)"
+              
+              if (( $(awk "BEGIN {print ($ERROR_RATE > 5)}") )); then
+                echo "❌ FAILED: Error rate ${ERROR_RATE}% exceeds 5% threshold"
+                exit 1
+              else
+                echo "✅ PASSED: Error rate acceptable"
+              fi
+              echo ""
+              
+              # Test 5: Memory and CPU (from metrics)
+              echo "Test 5: Resource Usage"
+              echo "----------------------"
+              
+              METRICS=$(curl -s "$CANARY_URL/metrics")
+              
+              MEMORY=$(echo "$METRICS" | grep "app_process_resident_memory_bytes" | grep -v "#" | awk '{print $2}')
+              if [ -n "$MEMORY" ]; then
+                MEMORY_MB=$(awk "BEGIN {print $MEMORY / 1024 / 1024}")
+                echo "Canary memory usage: ${MEMORY_MB}MB"
+                
+                if (( $(awk "BEGIN {print ($MEMORY_MB > 512)}") )); then
+                  echo "⚠️  WARNING: Memory usage exceeds 512MB"
+                else
+                  echo "✅ PASSED: Memory usage acceptable"
+                fi
+              else
+                echo "⚠️  WARNING: Memory metric not available"
+              fi
+              echo ""
+              
+              # Final Summary
+              echo "========================================="
+              echo "Smoke Test Summary"
+              echo "========================================="
+              echo "✅ All critical tests passed"
+              echo "Canary deployment is healthy and ready for traffic"
+              echo ""
+              
+              exit 0

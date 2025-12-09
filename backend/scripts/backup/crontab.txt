@@ -1,0 +1,18 @@
+# Backup Crontab Configuration
+# Add this to your crontab with: crontab -e
+# Or use it in Kubernetes CronJob specifications
+
+# MongoDB Backup - Every 6 hours
+0 */6 * * * /app/scripts/backup/backup-mongodb.sh >> /app/backups/mongodb/cron.log 2>&1
+
+# Media Backup - Every 6 hours (offset by 1 hour)
+0 1,7,13,19 * * * /app/scripts/backup/backup-media.sh >> /app/backups/media/cron.log 2>&1
+
+# Daily Health Check - Every day at 8 AM
+0 8 * * * /app/scripts/backup/backup-health-check.sh >> /app/backups/health-check.log 2>&1
+
+# Weekly Cleanup - Every Sunday at 3 AM
+0 3 * * 0 /app/scripts/backup/cleanup-old-backups.sh >> /app/backups/cleanup.log 2>&1
+
+# Monthly Report - First day of month at 9 AM
+0 9 1 * * /app/scripts/backup/backup-report.sh >> /app/backups/report.log 2>&1

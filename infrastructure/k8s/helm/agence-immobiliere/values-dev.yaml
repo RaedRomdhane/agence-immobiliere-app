@@ -1,0 +1,55 @@
+# Values for development environment
+global:
+  domain: localhost
+  environment: development
+
+backend:
+  replicaCount: 1
+  image:
+    tag: latest
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  autoscaling:
+    enabled: false
+
+frontend:
+  replicaCount: 1
+  image:
+    tag: latest
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  autoscaling:
+    enabled: false
+  env:
+    NEXT_PUBLIC_API_URL: http://localhost:5000
+
+mongodb:
+  persistence:
+    size: 5Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+ingress:
+  enabled: false
+
+persistence:
+  uploads:
+    size: 10Gi
+
+monitoring:
+  enabled: false

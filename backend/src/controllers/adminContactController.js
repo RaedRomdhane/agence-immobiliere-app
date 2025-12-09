@@ -66,3 +66,20 @@ exports.replyToMessage = async (req, res) => {
   }
   res.json({ success: true, message: 'Reply sent', data: message });
 };
+
+// GET /api/admin/contact/unread-count - Get count of unread messages for admin
+exports.getUnreadMessagesCount = async (req, res) => {
+  try {
+    // Count messages where isRead is false (admin hasn't read them yet)
+    const unreadCount = await ContactMessage.countDocuments({ isRead: false });
+    const totalCount = await ContactMessage.countDocuments();
+    
+    res.json({ 
+      success: true, 
+      count: unreadCount,
+      totalCount: totalCount
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erreur lors du comptage des messages non lus." });
+  }
+};

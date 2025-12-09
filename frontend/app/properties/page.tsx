@@ -62,46 +62,94 @@ export default function PropertiesPage() {
   const [appointmentStatus, setAppointmentStatus] = useState<AppointmentStatusMap>({});
   // Ref for the map section
   const mapSectionRef = useRef<HTMLDivElement>(null);
+  // Ref to prevent multiple simultaneous reset calls
+  const isResettingRef = useRef(false);
   // ...existing code...
     // Ref for sort debounce timeout
     const sortTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset all filters to default and clear saved criteria
   const handleResetFilters = async () => {
-    setFilterField('text');
-    setFilterValue('');
-    setTypeValue('');
-    setTransactionTypeValue('');
-    setSort('recent');
-    setStatusFilter(''); // Reset status dropdown to 'Tous les statuts'
-    setFeatureFilters({
-      parking: false,
-      garden: false,
-      pool: false,
-      elevator: false,
-      balcony: false,
-      terrace: false,
-      furnished: false,
-      airConditioning: false,
-      heating: false,
-      securitySystem: false,
-    });
-    // Mark criteria as not restored so useEffect will fetch on next render
-    setRestoredFromCriteria(false);
-    restoredCriteriaRef.current = null;
-    if (user && isAuthenticated) {
-      // Clear saved criteria in backend (set to empty object)
-      await userApi.setLastPropertySearchCriteria(user.id, {});
+    // Prevent multiple simultaneous calls
+    if (isResettingRef.current) {
+      console.log('[RESET] Already resetting, ignoring duplicate call');
+      return;
     }
-    // Force fetch after reset
-    setTimeout(() => {
-      if (user && user.role === 'admin') {
-        setStatusFilter(''); // This will trigger the admin fetch useEffect
-      } else {
-        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        handleSearch(fakeEvent);
+
+    isResettingRef.current = true;
+    console.log('[RESET] Starting reset...');
+
+    try {
+      // Clear saved criteria first if user is logged in
+      if (user && isAuthenticated) {
+        try {
+          await userApi.setLastPropertySearchCriteria(user.id, {});
+        } catch (err) {
+          console.error('Failed to clear saved criteria:', err);
+        }
       }
-    }, 0);
+
+      // Reset all filter states
+      setFilterField('text');
+      setFilterValue('');
+      setTypeValue('');
+      setTransactionTypeValue('');
+      setSort('recent');
+      setStatusFilter('');
+      setFeatureFilters({
+        parking: false,
+        garden: false,
+        pool: false,
+        elevator: false,
+        balcony: false,
+        terrace: false,
+        furnished: false,
+        airConditioning: false,
+        heating: false,
+        securitySystem: false,
+      });
+      
+      // Mark criteria as not restored
+      setRestoredFromCriteria(false);
+      restoredCriteriaRef.current = null;
+
+      // Immediately fetch all properties with default filters
+      setLoading(true);
+      setError('');
+      setProperties([]);
+
+      const params = new URLSearchParams();
+      params.append('limit', '100');
+      params.append('sort', '-createdAt'); // Default sort: most recent
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const url = `${apiUrl}/properties?${params.toString()}`;
+      
+      console.log('[RESET] Fetching properties with URL:', url);
+
+      let fetchOptions: RequestInit = {};
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (token) {
+        fetchOptions.headers = { Authorization: `Bearer ${token}` };
+      }
+
+      const res = await fetch(url, fetchOptions);
+      if (!res.ok) throw new Error('Erreur lors du chargement des biens');
+      
+      const data = await res.json();
+      console.log('[RESET] Received properties:', data.data?.length || 0);
+      setProperties(data.data || []);
+      setResultCount((data.data && Array.isArray(data.data)) ? data.data.length : 0);
+    } catch (err: any) {
+      console.error('[RESET] Error:', err);
+      setError(err.message || 'Erreur inconnue');
+      setProperties([]);
+      setResultCount(0);
+    } finally {
+      setLoading(false);
+      isResettingRef.current = false;
+      console.log('[RESET] Reset complete');
+    }
   };
   // ...existing code...
   const [properties, setProperties] = useState<any[]>([]);
@@ -255,6 +303,7 @@ export default function PropertiesPage() {
   const [restoredFromCriteria, setRestoredFromCriteria] = useState(false);
   const [restoringCriteria, setRestoringCriteria] = useState(true); // Start as true to prevent premature fetch
   const restoredCriteriaRef = useRef<LastPropertySearchCriteria | null>(null);
+  const [triggerSearchFromUrl, setTriggerSearchFromUrl] = useState(false);
 
   // --- Prefill filters from URL query params or saved criteria for logged-in user ---
   useEffect(() => {
@@ -305,6 +354,10 @@ export default function PropertiesPage() {
         sort: qpSort ?? undefined,
         featureFilters: qpFeatureFilters,
       };
+      
+      // Set flag to trigger search from URL params
+      setTriggerSearchFromUrl(true);
+      
       return;
     }
     // Otherwise, fall back to backend criteria
@@ -351,6 +404,18 @@ export default function PropertiesPage() {
       handleSearch(fakeEvent);
     }
   }, [restoredFromCriteria, filterField, filterValue, typeValue, transactionTypeValue, sort, featureFilters]);
+
+  // --- Trigger search from URL parameters ---
+  useEffect(() => {
+    if (!triggerSearchFromUrl) return;
+    // Wait a tick for all state updates to complete
+    const timer = setTimeout(() => {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleSearch(fakeEvent);
+      setTriggerSearchFromUrl(false); // Reset flag
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [triggerSearchFromUrl, filterField, filterValue, typeValue, transactionTypeValue, sort, featureFilters]);
 
   // --- Fetch properties from backend on ANY filter change ---
   // --- Fetch properties when statusFilter changes (admin) or initial load (all users) ---

@@ -428,6 +428,9 @@ exports.updateProperty = async (req, res) => {
         console.error('Erreur parsing existingPhotos:', e);
         existingPhotos = [];
       }
+    } else {
+      // If no existingPhotos provided, preserve the current photos
+      existingPhotos = property.photos || [];
     }
 
     let newPhotos = [];
@@ -445,7 +448,10 @@ exports.updateProperty = async (req, res) => {
       isPrimary: i === 0 
     }));
     
-    property.photos = allPhotos;
+    // Only update photos if there are changes (new files or explicit existingPhotos)
+    if (req.files && req.files.length > 0 || req.body.existingPhotos) {
+      property.photos = allPhotos;
+    }
 
     await property.save();
 
@@ -584,6 +590,13 @@ exports.createProperty = async (req, res) => {
         url: `/uploads/properties/${file.filename}`,
         filename: file.filename,
         isPrimary: index === 0 // La première photo est la principale
+      }));
+    } else if (req.body.photos && Array.isArray(req.body.photos) && req.body.photos.length > 0) {
+      // Allow photos in body for testing purposes
+      propertyData.photos = req.body.photos.map((photo, index) => ({
+        url: photo.url,
+        filename: photo.filename,
+        isPrimary: photo.isPrimary !== undefined ? photo.isPrimary : index === 0
       }));
     } else {
       return res.status(400).json({

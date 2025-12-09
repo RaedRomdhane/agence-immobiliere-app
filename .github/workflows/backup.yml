@@ -1,0 +1,64 @@
+name: Database Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to backup'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  backup:
+    name: Backup MongoDB
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          if [ "${{ inputs.environment }}" == "production" ] || [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+            ENV="production"
+          else
+            echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+            ENV="staging"
+          fi
+          echo "ENVIRONMENT=$ENV" >> $GITHUB_ENV
+      
+      - name: Create backup job
+        run: |
+          JOB_NAME="backup-manual-$(date +%Y%m%d-%H%M%S)"
+          kubectl create job --from=cronjob/mongodb-backup $JOB_NAME -n ${{ env.ENVIRONMENT }}
+          echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+      
+      - name: Wait for backup completion
+        run: |
+          kubectl wait --for=condition=complete --timeout=15m job/${{ env.JOB_NAME }} -n ${{ env.ENVIRONMENT }}
+      
+      - name: Verify backup
+        run: |
+          kubectl logs job/${{ env.JOB_NAME }} -n ${{ env.ENVIRONMENT }}
+          
+      - name: Cleanup old backups
+        run: |
+          # Keep last 7 backups
+          kubectl get jobs -n ${{ env.ENVIRONMENT }} | grep backup | sort -r | tail -n +8 | awk '{print $1}' | xargs -r kubectl delete job -n ${{ env.ENVIRONMENT }}
+      
+      - name: Notify backup status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Backup completed successfully for ${{ env.ENVIRONMENT }}"
+          else
+            echo "Backup failed for ${{ env.ENVIRONMENT }}"
+          fi

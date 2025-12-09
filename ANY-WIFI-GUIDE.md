@@ -66,6 +66,9 @@ STRIPE_SECRET_KEY=your_stripe_secret_key
 ```powershell
 # Option 1: Use deploy script (recommended)
 .\scripts\deploy-production.ps1
+cd backend; npm run dev              # Terminal 1
+cd frontend; npm run dev             # Terminal 2  
+cd backend; node scripts/regenerate-qrcodes.js  #Terminal 3
 
 # Option 2: Manual deploy
 git add .

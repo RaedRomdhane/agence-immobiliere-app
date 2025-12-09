@@ -1,0 +1,52 @@
+# Values for staging environment
+global:
+  domain: staging.agence-immobiliere.com
+  environment: staging
+
+backend:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+
+frontend:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+  env:
+    NEXT_PUBLIC_API_URL: https://api.staging.agence-immobiliere.com
+
+mongodb:
+  persistence:
+    size: 10Gi
+
+ingress:
+  enabled: true
+  hosts:
+    - host: staging.agence-immobiliere.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 3000
+    - host: api.staging.agence-immobiliere.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: backend
+          port: 5000
+  tls:
+    - secretName: agence-immobiliere-staging-tls
+      hosts:
+        - staging.agence-immobiliere.com
+        - api.staging.agence-immobiliere.com
+
+persistence:
+  uploads:
+    size: 20Gi
+
+monitoring:
+  enabled: true

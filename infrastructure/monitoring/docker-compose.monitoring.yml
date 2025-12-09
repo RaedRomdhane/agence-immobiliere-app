@@ -40,7 +40,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboard.json:/var/lib/grafana/dashboards/agence-dashboard.json:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus

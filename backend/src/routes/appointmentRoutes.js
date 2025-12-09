@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth');
 const appointmentController = require('../controllers/appointmentController');
+// GET /api/appointments/pending-count - Admin: count pending appointments
+router.get('/pending-count', protect, appointmentController.getPendingCount);
 // GET /api/appointments/user - User: list their own appointments
 router.get('/user', protect, appointmentController.getUserAppointments);
 // GET /api/appointments/global-status - Global appointment status for all properties

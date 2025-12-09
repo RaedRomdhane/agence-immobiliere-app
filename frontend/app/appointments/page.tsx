@@ -13,7 +13,11 @@ interface Appointment {
     _id: string;
     title: string;
     type: string;
-    city: string;
+    location?: {
+      address?: string;
+      city?: string;
+      region?: string;
+    };
     price: number;
     status: string;
   };
@@ -83,8 +87,8 @@ export default function AppointmentsPage() {
                       {app.status === "pending" && <Clock className="text-yellow-500" />}
                       {app.status === "accepted" && <CheckCircle className="text-green-600" />}
                       {app.status === "denied" && <XCircle className="text-red-500" />}
-                      <span className="font-medium">{app.property.title}</span>
-                      <span className="ml-auto text-xs text-gray-500">{new Date(app.requestedAt).toLocaleDateString()}</span>
+                      <span className="font-medium text-gray-900">{app.property.title}</span>
+                      <span className="ml-auto text-xs text-gray-900">{new Date(app.requestedAt).toLocaleDateString()}</span>
                     </div>
                     <div className="text-sm text-gray-700">Statut : <span className={
                       app.status === "pending" ? "text-yellow-600" :
@@ -102,16 +106,16 @@ export default function AppointmentsPage() {
             </div>
             {upcoming.length > 0 && (
               <div className="w-full mb-4">
-                <h2 className="font-semibold text-green-700 mb-2">Prochains rendez-vous acceptés</h2>
+                <h2 className="font-semibold text-green-800 mb-2">Prochains rendez-vous acceptés</h2>
                 <ul className="space-y-3">
                   {upcoming.map(app => (
                     <li key={app._id} className="bg-green-50 rounded-lg p-4 flex flex-col gap-1 border border-green-200">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="text-green-600" />
-                        <span className="font-medium">{app.property.title}</span>
-                        <span className="ml-auto text-xs text-gray-500">{new Date(app.meetingDate!).toLocaleString()}</span>
+                        <span className="font-semibold text-gray-900">{app.property.title}</span>
+                        <span className="ml-auto text-xs text-gray-900">{new Date(app.meetingDate!).toLocaleString()}</span>
                       </div>
-                      <div className="text-sm text-gray-700">Lieu : {app.property.city}</div>
+                      <div className="text-sm font-medium text-gray-900">Lieu : {app.property.location?.address || app.property.location?.city || 'Non spécifié'}</div>
                     </li>
                   ))}
                 </ul>

@@ -23,7 +23,21 @@ export default function NotificationsPage() {
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
         const response = await axios.get(`${apiUrl}/notifications`, { headers });
-        setNotifications(response.data?.data || []);
+        const allNotifications = response.data?.data || [];
+        
+        // Mark all notifications as read when viewing this page
+        const unreadIds = allNotifications
+          .filter((n: any) => !n.read)
+          .map((n: any) => n._id);
+        
+        if (unreadIds.length > 0) {
+          // Mark all as read
+          await axios.patch(`${apiUrl}/notifications/mark-all-read`, {}, { headers });
+        }
+        
+        // Filter to show only unread notifications (before marking as read)
+        const unreadNotifications = allNotifications.filter((n: any) => !n.read);
+        setNotifications(unreadNotifications);
       } catch (e) {
         setNotifications([]);
       } finally {
@@ -95,7 +109,7 @@ export default function NotificationsPage() {
                     <span className="text-gray-500 text-sm">{timeAgo(notification.createdAt)}</span>
                   </div>
                   <p className="text-gray-600 text-sm">{notification.message}</p>
-                  {!notification.isRead && (
+                  {!notification.read && (
                     <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
                       Non lu
                     </span>

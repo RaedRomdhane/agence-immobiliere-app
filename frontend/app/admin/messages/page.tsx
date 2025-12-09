@@ -23,7 +23,10 @@ export default function MessagesPage() {
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
         const response = await axios.get(`${apiUrl}/admin/contact/messages`, { headers });
-        setMessages(response.data || []);
+        // Filter to show only unread messages
+        const allMessages = response.data || [];
+        const unreadMessages = allMessages.filter((msg: any) => !msg.isRead);
+        setMessages(unreadMessages);
       } catch (e) {
         setMessages([]);
       } finally {

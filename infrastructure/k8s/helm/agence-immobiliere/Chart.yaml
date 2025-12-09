@@ -1,0 +1,14 @@
+apiVersion: v2
+name: agence-immobiliere
+description: Real estate agency application with backend, frontend, and MongoDB
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - real-estate
+  - nodejs
+  - nextjs
+  - mongodb
+maintainers:
+  - name: Agence Immobiliere Team
+    email: dev@agence-immobiliere.com

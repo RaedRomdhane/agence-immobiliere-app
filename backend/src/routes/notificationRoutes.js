@@ -82,4 +82,18 @@ router.patch('/mark-all-read', protect, async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/notifications/unread-count
+ * @desc    Get count of unread notifications for the current user
+ * @access  Private
+ */
+router.get('/unread-count', protect, async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ user: req.user._id, read: false });
+    res.json({ success: true, count });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur comptage notifications', error: err.message });
+  }
+});
+
 module.exports = router;

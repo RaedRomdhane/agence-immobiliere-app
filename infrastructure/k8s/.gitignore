@@ -1,0 +1,10 @@
+# Kubernetes Helm Chart - DO NOT commit secrets
+secrets-*.yaml
+!secrets-example.yaml
+
+# Temporary files
+*.tmp
+*.bak
+
+# Local development overrides
+values-local.yaml

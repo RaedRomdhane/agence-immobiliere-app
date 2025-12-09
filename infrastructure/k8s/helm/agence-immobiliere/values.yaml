@@ -1,0 +1,245 @@
+# Default values for agence-immobiliere
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  domain: agence-immobiliere.com
+  environment: production
+
+# Canary deployment configuration
+canary:
+  enabled: false
+  trafficWeight: 10  # Percentage of traffic to canary (0-100)
+  
+# Backend service configuration
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: agence-immobiliere-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Canary configuration
+  canary:
+    image:
+      repository: agence-immobiliere-backend
+      tag: canary
+  
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+    annotations: {}
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 5000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 5000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  env:
+    NODE_ENV: production
+    PORT: "5000"
+  
+  envSecrets:
+    - MONGODB_URI
+    - JWT_SECRET
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+    - SESSION_SECRET
+    - AZURE_STORAGE_ACCOUNT_NAME
+    - AZURE_STORAGE_ACCOUNT_KEY
+
+# Frontend service configuration
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: agence-immobiliere-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+    annotations: {}
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  env:
+    NODE_ENV: production
+    NEXT_PUBLIC_API_URL: https://api.agence-immobiliere.com
+
+# MongoDB configuration
+mongodb:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    rootUser: admin
+    rootPassword: ""  # Set via --set or secrets
+    database: agence_immobiliere
+  
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class
+    size: 20Gi
+    accessModes:
+      - ReadWriteOnce
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  
+  hosts:
+    - host: agence-immobiliere.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 3000
+    - host: api.agence-immobiliere.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: backend
+          port: 5000
+  
+  tls:
+    - secretName: agence-immobiliere-tls
+      hosts:
+        - agence-immobiliere.com
+        - api.agence-immobiliere.com
+
+# Persistent Volume Claims for media uploads
+persistence:
+  uploads:
+    enabled: true
+    storageClass: ""  # Use default storage class
+    size: 50Gi
+    accessModes:
+      - ReadWriteMany
+    mountPath: /app/uploads
+
+# ServiceMonitor for Prometheus Operator
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
+
+# Network Policies
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+
+# Pod Security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Node affinity and tolerations
+affinity: {}
+tolerations: []
+nodeSelector: {}

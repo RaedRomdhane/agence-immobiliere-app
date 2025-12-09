@@ -24,6 +24,11 @@ const { requireFeatureFlag } = require('./middlewares/featureFlag');
 
 const app = express();
 
+// ⚠️ CRITICAL: Stripe Webhook MUST be THE FIRST route - BEFORE ALL MIDDLEWARES
+// Stripe requires the RAW body to verify the signature
+const webhookController = require('./controllers/webhookController');
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookController.handleStripeWebhook);
+
 // Configuration de Passport (OAuth)
 configurePassport();
 
@@ -92,9 +97,6 @@ app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined', { st
 // Metrics middleware (Prometheus)
 app.use(metricsMiddleware);
 
-// Register webhook routes BEFORE body parsers
-app.use('/api/webhooks', webhookRoutes);
-
 // Expose Prometheus metrics
 app.get('/metrics', async (req, res) => {
   try {
@@ -106,7 +108,7 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
-// Body parser
+// Body parser (AFTER webhook routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
